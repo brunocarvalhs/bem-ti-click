@@ -1,0 +1,900 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Olha o Passarinho!</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: TV = cena em pixel art 320×180 ampliada sem suavização, de ponta a ponta, com HUD em caixas de borda branca dentro da margem de overscan; câmera = visor em tela cheia com controles ao alcance do polegar. Visual único e escuro de console 8 bits, por escolha. */
+:root{
+  --night:#0e1220;
+  --box:#000000;
+  --line:#f4f1e8;
+  --ink:#f4f1e8;
+  --dim:#9aa6bf;
+  --sun:#ffcc33;
+  --sun-dark:#c48a00;
+  --rec:#ea3b3b;
+  --pixel:"Press Start 2P","Courier New",monospace;
+  --ui:"Pixelify Sans","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--night);color:var(--ink);font-family:var(--ui);font-size:17px;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+h1,h2,h3{font-family:var(--pixel);font-weight:400;margin:0;line-height:1.25;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+canvas.px,.px-img{image-rendering:pixelated;image-rendering:crisp-edges}
+.eyebrow{font:10px/1.6 var(--pixel);letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.eyebrow b{color:var(--sun);font-weight:400}
+.dim{color:var(--dim)}
+.small{font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.btn{font:11px/1.4 var(--pixel);text-transform:uppercase;padding:13px 16px;border:3px solid var(--line);background:var(--box);color:var(--ink);box-shadow:inset -3px -3px 0 #2c3346;min-height:46px}
+.btn:hover{background:#151a29}
+.btn:active{box-shadow:inset 3px 3px 0 #2c3346}
+.btn.primary{background:var(--sun);color:#000;border-color:var(--line);box-shadow:inset -3px -3px 0 var(--sun-dark)}
+.btn.primary:hover{background:#ffd75c}
+.btn.primary:disabled{background:#1d2232;color:var(--dim);box-shadow:none;cursor:not-allowed}
+.btn.ghost{background:transparent;box-shadow:none}
+.panel{background:var(--box);border:4px solid var(--line);box-shadow:0 0 0 4px #000,8px 8px 0 4px rgba(0,0,0,.4)}
+
+/* ---------- TV ---------- */
+#tv{position:fixed;inset:0;background:#163d24}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#tv.aim #scene{cursor:none}
+.hud{position:absolute;inset:0;pointer-events:none}
+.clock{position:absolute;top:3.5vh;left:50%;transform:translateX(-50%);font:clamp(22px,5vh,54px)/1 var(--pixel);color:var(--ink);background:#000;border:4px solid var(--line);padding:.35em .55em .3em;font-variant-numeric:tabular-nums}
+.clock.low{color:var(--sun)}
+.scoreboard{position:absolute;top:3.5vh;left:3.5vw;list-style:none;margin:0;padding:10px 14px;display:grid;gap:8px;min-width:min(250px,30vw);background:#000;border:4px solid var(--line)}
+.scoreboard li{display:flex;align-items:center;gap:10px;font:clamp(10px,1.7vh,17px)/1.2 var(--pixel)}
+.scoreboard li.off{opacity:.45}
+.scoreboard i,.roster i,.ranking i{width:12px;height:12px;background:var(--c);flex:none;box-shadow:0 0 0 2px #000}
+.scoreboard span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9em}
+.scoreboard b{font-weight:400;margin-left:auto;padding-left:14px;color:var(--sun);font-variant-numeric:tabular-nums}
+.qr-corner{position:absolute;right:3.5vw;bottom:3.5vh;background:#fff;padding:8px 8px 6px;border:4px solid #000;display:grid;justify-items:center;gap:6px;color:#000;font:10px/1 var(--pixel)}
+.qr-corner img{display:block;width:108px;height:108px}
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding:16px;pointer-events:none}
+.overlay>*{pointer-events:auto}
+.gate{max-width:560px;padding:28px;display:grid;gap:18px}
+.gate h1{font-size:clamp(22px,4vw,40px)}
+.gate h1 span{color:var(--sun)}
+#marquee{width:100%;aspect-ratio:4/1;border:4px solid var(--line);background:#4f9de6}
+.lobby{display:grid;grid-template-columns:auto minmax(0,1fr);gap:30px;align-items:center;padding:28px;max-width:940px;width:100%;max-height:94vh;overflow:auto}
+.lobby-qr{display:grid;gap:10px;justify-items:center;max-width:268px}
+.lobby-qr img{display:block;width:236px;height:236px;background:#fff;border:4px solid #000;box-shadow:0 0 0 4px var(--line)}
+.join-url{font:600 15px/1.3 var(--ui);color:var(--dim);text-align:center;word-break:break-all;-webkit-user-select:text;user-select:text}
+.lobby-info{display:grid;gap:16px;min-width:0}
+.lobby-info h2{font-size:clamp(16px,2.6vw,26px)}
+.roster{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;min-height:38px}
+.roster li{display:flex;align-items:center;gap:8px;border:3px solid #3a4258;padding:7px 12px;font-weight:600}
+.roster li.empty{border-style:dashed;color:var(--dim);font-weight:400}
+.countdown{font:min(30vh,30vw)/1 var(--pixel);color:var(--ink);text-shadow:8px 8px 0 #000;pointer-events:none}
+.results{padding:26px 28px;max-width:980px;width:100%;max-height:92vh;overflow:auto;display:grid;gap:18px}
+.results h2{font-size:clamp(16px,2.8vw,28px);color:var(--sun)}
+.ranking{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.ranking li{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:16px;padding:10px 14px;border:3px solid #3a4258}
+.ranking .pos{font:22px/1 var(--pixel);color:var(--dim);width:1.4em;text-align:center}
+.ranking li:first-child{border-color:var(--sun)}
+.ranking li:first-child .pos{color:var(--sun)}
+.ranking .who{display:grid;gap:6px;min-width:0}
+.ranking .who b{font:13px/1.3 var(--pixel);display:flex;align-items:center;gap:10px;font-weight:400}
+.ranking .who span{color:var(--dim);font-size:15px}
+.ranking .pts{font:24px/1 var(--pixel);font-variant-numeric:tabular-nums}
+.print{background:#fff;padding:6px 6px 5px;color:#000;transform:rotate(-1.5deg);display:grid;gap:4px;width:156px;box-shadow:4px 4px 0 #000}
+.print img{display:block;width:100%;aspect-ratio:3/2;object-fit:cover;background:#8cc8f3}
+.print span{font:7px/1.4 var(--pixel)}
+.print.none{background:transparent;border:3px dashed #3a4258;color:var(--dim);transform:none;aspect-ratio:3/2;place-items:center;font-size:14px;box-shadow:none}
+@media (max-width:640px){
+  .lobby{grid-template-columns:1fr;justify-items:center;gap:18px}
+  .ranking li{grid-template-columns:auto minmax(0,1fr) auto}
+  .ranking .print{display:none}
+}
+
+/* ---------- câmera ---------- */
+#cam{position:fixed;inset:0;background:var(--night)}
+.join{position:absolute;inset:auto 16px;top:50%;transform:translateY(-50%);max-width:440px;margin:0 auto;padding:24px;display:grid;gap:12px;max-height:calc(100% - 32px);overflow:auto}
+.join h2{font-size:18px}
+.join label{font-weight:600;margin-top:4px}
+.join input{font:600 20px var(--ui);color:var(--ink);background:#10141f;border:3px solid var(--line);padding:10px 12px;width:100%;-webkit-user-select:text;user-select:text}
+.join input#codeIn{font:18px var(--pixel);letter-spacing:.2em;text-transform:uppercase}
+.vf{position:absolute;inset:0;display:grid;grid-template-areas:"top" "pad" "side" "shut";grid-template-rows:auto minmax(0,1fr) auto auto;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 14px)}
+@media (orientation:landscape){
+  .vf{grid-template-areas:"top top top" "side pad shut";grid-template-columns:minmax(118px,180px) minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);padding-left:calc(env(safe-area-inset-left,0px) + 16px);padding-right:calc(env(safe-area-inset-right,0px) + 16px)}
+  .vf-side{flex-direction:column;align-items:stretch;justify-content:center}
+}
+.vf-top{grid-area:top;display:flex;align-items:center;gap:12px;font:10px/1 var(--pixel)}
+.me{display:flex;align-items:center;gap:8px;min-width:0}
+.me i{width:12px;height:12px;background:var(--c,var(--dim));flex:none}
+.me b{font:700 17px var(--ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vf-clock{margin-left:auto;color:var(--dim);font-variant-numeric:tabular-nums}
+.vf-clock.rec::before{content:"";display:inline-block;width:9px;height:9px;background:var(--rec);margin-right:8px;vertical-align:-1px}
+.vf-score{font:13px/1 var(--pixel);color:var(--sun);font-variant-numeric:tabular-nums}
+.pad{grid-area:pad;position:relative;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#26304a 0%,#0c0f19 72%);touch-action:none;border:3px solid #3a4258}
+.thirds{position:absolute;inset:0;background:
+  linear-gradient(90deg,transparent calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% + 1px),transparent calc(33.333% + 1px),transparent calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% + 1px),transparent calc(66.666% + 1px)),
+  linear-gradient(180deg,transparent calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% + 1px),transparent calc(33.333% + 1px),transparent calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% + 1px),transparent calc(66.666% + 1px));pointer-events:none}
+.af{position:absolute;left:50%;top:50%;width:84px;height:60px;transform:translate(-50%,-50%);pointer-events:none}
+.af i{position:absolute;width:16px;height:16px;border:3px solid var(--sun)}
+.af i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}
+.af i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+.af i:nth-child(3){right:0;bottom:0;border-left:0;border-top:0}
+.af i:nth-child(4){left:0;bottom:0;border-right:0;border-top:0}
+.vf-msg{position:absolute;left:0;right:0;top:15%;text-align:center;font:clamp(15px,4.6vw,26px)/1.3 var(--pixel);color:var(--ink);text-shadow:3px 3px 0 #000;opacity:0;padding:0 12px;pointer-events:none}
+.vf-msg.show{opacity:1}
+.vf-msg.perfect{color:var(--sun)}
+.vf-msg.miss{color:#ff9d9d}
+.vf-msg.info{font:600 17px/1.4 var(--ui);text-shadow:none;background:#000;border:3px solid var(--line);margin:0 12px;padding:10px 12px}
+.vf-hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:var(--dim);font-size:15px;pointer-events:none;padding:0 12px}
+.vf-exif{position:absolute;left:0;right:0;top:12px;text-align:center;font:8px var(--pixel);color:rgba(255,255,255,.55);pointer-events:none}
+.vf-side{grid-area:side;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.vf-side .btn{padding:10px 12px;min-height:42px;font-size:9px}
+.seg{display:flex;border:3px solid #3a4258;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:8px 10px;font:8px/1.4 var(--pixel);color:var(--dim);flex:1}
+.seg button.on{background:var(--ink);color:#000}
+.shut{grid-area:shut;display:grid;place-items:center}
+.shutter{width:92px;height:92px;border-radius:50%;border:5px solid var(--line);background:#000;padding:7px;touch-action:none}
+.shutter::after{content:"";display:block;width:100%;height:100%;border-radius:50%;background:var(--ink)}
+.shutter:active::after,.shutter.wait::after{background:var(--sun);transform:scale(.86)}
+.blink{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.blink.go{animation:blink .16s steps(3)}
+@keyframes blink{0%{opacity:.9}100%{opacity:0}}
+.sheet{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);max-width:420px;margin:0 auto;padding:20px;display:grid;gap:14px;z-index:5}
+.sheet h3{font-size:14px}
+.sheet label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sheet input[type=range]{flex:1;accent-color:var(--sun)}
+.sheet input[type=checkbox]{width:22px;height:22px;accent-color:var(--sun)}
+@media (prefers-reduced-motion:reduce){.blink.go{animation-duration:.01s}}
+</style>
+</head>
+<body>
+
+<section id="tv" hidden>
+  <canvas id="scene" class="px"></canvas>
+  <div class="hud">
+    <ol id="scoreboard" class="scoreboard" hidden></ol>
+    <div id="clock" class="clock" hidden>1:00</div>
+    <div id="qrCorner" class="qr-corner" hidden><img id="qrSmall" alt="QR Code para entrar como câmera"><span id="codeSmall"></span></div>
+  </div>
+  <div class="overlay">
+    <div id="gate" class="panel gate">
+      <p class="eyebrow">Jogo de fotografia para duas telas</p>
+      <h1>Olha o <span>Passarinho!</span></h1>
+      <canvas id="marquee" class="px" width="128" height="32" aria-hidden="true"></canvas>
+      <p class="dim">Esta tela é a TV. Um clique libera o som e tenta abrir em tela cheia; depois é só escanear o QR Code com o celular.</p>
+      <div class="row"><button id="armTv" class="btn primary" type="button">Preparar a TV</button></div>
+    </div>
+    <div id="lobby" class="panel lobby" hidden>
+      <div class="lobby-qr"><img id="qrBig" alt="QR Code para entrar como câmera" hidden><p id="joinUrl" class="join-url"></p></div>
+      <div class="lobby-info">
+        <p class="eyebrow">Sala <b id="codeBig">----</b></p>
+        <h2>Aponte o celular para o QR Code</h2>
+        <p id="netStatus" class="dim">Conectando ao servidor…</p>
+        <ul id="roster" class="roster"></ul>
+        <div class="row">
+          <button id="startBtn" class="btn primary" type="button" disabled>Começar</button>
+          <button id="mouseBtn" class="btn" type="button">Jogar com o mouse</button>
+        </div>
+        <p class="dim small">Rodada de 60 s. Ganha quem somar mais pontos; no empate, vence a foto mais centralizada.</p>
+      </div>
+    </div>
+    <div id="countdown" class="countdown" hidden>3</div>
+    <div id="results" class="panel results" hidden>
+      <p class="eyebrow">Fim da rodada</p>
+      <h2 id="winner"></h2>
+      <ol id="ranking" class="ranking"></ol>
+      <div class="row"><button id="againBtn" class="btn primary" type="button">Jogar de novo</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="cam" hidden>
+  <form id="join" class="panel join">
+    <p class="eyebrow">Câmera</p>
+    <h2>Quem vai fotografar?</h2>
+    <label for="codeIn">Sala (as 4 letras da TV)</label>
+    <input id="codeIn" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ABCD">
+    <label for="nameIn">Seu nome</label>
+    <input id="nameIn" maxlength="14" autocomplete="nickname" placeholder="Ex.: Bruno">
+    <p id="joinStatus" class="dim" aria-live="polite"></p>
+    <button id="joinBtn" class="btn primary" type="submit">Entrar na partida</button>
+  </form>
+  <div id="vf" class="vf" hidden>
+    <div class="vf-top">
+      <span id="meChip" class="me"><i></i><b id="meName"></b></span>
+      <span id="vfClock" class="vf-clock">Aguardando</span>
+      <span id="vfScore" class="vf-score">0000</span>
+    </div>
+    <div id="pad" class="pad">
+      <div class="thirds"></div>
+      <div class="af"><i></i><i></i><i></i><i></i></div>
+      <p class="vf-exif">ISO 400 · f/5.6 · 1/2000</p>
+      <p id="vfMsg" class="vf-msg"></p>
+      <p id="vfHint" class="vf-hint">Arraste o dedo aqui para mover a mira na TV</p>
+    </div>
+    <div class="vf-side">
+      <div class="seg" role="group" aria-label="Controle da mira">
+        <button id="modeTouch" class="on" type="button">Touchpad</button>
+        <button id="modeGyro" type="button">Giroscópio</button>
+      </div>
+      <button id="recenter" class="btn ghost" type="button">Centralizar</button>
+      <button id="setBtn" class="btn ghost" type="button">Ajustes</button>
+      <button id="camStart" class="btn primary" type="button" hidden>Começar</button>
+    </div>
+    <div class="shut"><button id="shutter" class="shutter" type="button" aria-label="Disparar foto"></button></div>
+    <div id="settings" class="panel sheet" hidden>
+      <h3>Ajustes</h3>
+      <label for="sensIn">Sensibilidade <input id="sensIn" type="range" min="0.4" max="2.5" step="0.1" value="1"></label>
+      <label for="invXIn">Inverter horizontal (giroscópio) <input id="invXIn" type="checkbox"></label>
+      <label for="invYIn">Inverter vertical (giroscópio) <input id="invYIn" type="checkbox"></label>
+      <div class="row"><button id="setClose" class="btn primary" type="button">Fechar</button></div>
+    </div>
+    <div id="blink" class="blink"></div>
+  </div>
+</section>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// CORE-START — regras puras (sem DOM), testáveis isoladamente
+const W = 1600, H = 900, ROUND = 60, COUNTDOWN = 3;
+const TIERS = [
+  { key: 'perfect', max: 0.2, pts: 100, label: 'Foto Perfeita!' },
+  { key: 'good', max: 0.55, pts: 50, label: 'Boa Foto' },
+  { key: 'shaky', max: 1.0, pts: 10, label: 'Foto Tremida' },
+];
+const MISS = { key: 'miss', pts: 0, label: 'Perdeu o foco!' };
+// Distância normalizada pela hitbox elíptica: 0 = centro, 1 = borda. Pássaro grande e pequeno ficam justos.
+function shotDistance(aim, b) { return Math.hypot((aim.x - b.x) / b.rx, (aim.y - b.y) / b.ry); }
+function scoreShot(aim, birds) {
+  let best = null;
+  for (const b of birds) { const d = shotDistance(aim, b); if (!best || d < best.d) best = { d, bird: b }; }
+  const tier = (best && TIERS.find(t => best.d <= t.max)) || MISS;
+  return { ...tier, d: best ? best.d : Infinity, bird: tier === MISS ? null : best.bird };
+}
+// Compensação de latência: julga contra o que estava NA TELA (mira exibida + pássaros) nos últimos ms.
+// ponytail: janela fixa de 240 ms, fica com o melhor quadro; trocar por rebobinar com relógio sincronizado se alguém explorar.
+function judge(history, key, now, windowMs = 240) {
+  let best = null;
+  for (const f of history) {
+    if (now - f.t > windowMs) continue;
+    const aim = f.aims[key];
+    if (!aim) continue;
+    const r = scoreShot(aim, f.birds);
+    if (!best || r.d < best.d) best = { ...r, aim };
+  }
+  return best || { ...MISS, d: Infinity, bird: null, aim: null };
+}
+function rankPlayers(list) {
+  return [...list].sort((a, b) => b.score - a.score || (a.best ? a.best.d : 9) - (b.best ? b.best.d : 9) || b.perfect - a.perfect);
+}
+// CORE-END
+
+const $ = id => document.getElementById(id);
+const COLORS = ['#ffcc33', '#4cc9f0', '#ff6b9a', '#7bd389', '#ff8b3d', '#c4a8ff'];
+const LABELS = { perfect: 'FOTO PERFEITA! +100', good: 'BOA FOTO +50', shaky: 'FOTO TREMIDA +10', miss: 'PERDEU O FOCO!' };
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const num = v => (Number.isFinite(v) ? v : 0);
+const rand = (a, b) => a + Math.random() * (b - a);
+const cleanName = s => String(s || '').replace(/[^\p{L}\p{N} ._-]/gu, '').trim().slice(0, 14);
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+function wakeLock() { try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {} }
+
+// ---------- som chiptune (sintetizado, sem arquivos) ----------
+let actx = null;
+function unlockAudio() { try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); actx.resume(); } catch (e) {} }
+function noise(t0, dur, freq, gain) {
+  const n = Math.floor(actx.sampleRate * dur), buf = actx.createBuffer(1, n, actx.sampleRate), d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n) ** 2;
+  const src = actx.createBufferSource(), f = actx.createBiquadFilter(), g = actx.createGain();
+  src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 0.8; g.gain.value = gain;
+  src.connect(f).connect(g).connect(actx.destination); src.start(t0);
+}
+function tone(t0, freq, dur, gain, type, to) {
+  const o = actx.createOscillator(), g = actx.createGain();
+  o.type = type || 'square'; o.frequency.setValueAtTime(freq, t0);
+  if (to) o.frequency.linearRampToValueAtTime(to, t0 + dur);
+  g.gain.setValueAtTime(gain, t0); g.gain.setValueAtTime(gain, t0 + dur * 0.7); g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+}
+const seq = (notes, step, gain, type) => { if (!actx) return; const t = actx.currentTime + 0.02; notes.forEach((f, i) => f && tone(t + i * step, f, step * 0.9, gain, type)); };
+const sfx = {
+  shutter() { if (!actx) return; const t = actx.currentTime; noise(t, 0.035, 3200, 0.8); noise(t + 0.06, 0.05, 1800, 0.6); },
+  perfect() { seq([1047, 1319, 1568, 2093], 0.06, 0.07); },
+  good() { seq([784, 1047], 0.07, 0.06); },
+  laugh() { seq([698, 587, 698, 587, 659, 523, 587, 466], 0.085, 0.07); }, // risada do Mico
+  chirp() { if (!actx) return; const t = actx.currentTime; tone(t, 2400, 0.05, 0.025, 'triangle', 3200); tone(t + 0.08, 2600, 0.05, 0.025, 'triangle', 3400); },
+  beep(hi) { seq([hi ? 1568 : 784], 0.14, 0.07); },
+  jingle() { seq([523, 659, 784, 0, 659, 784, 1047, 0, 1047], 0.11, 0.07, 'square'); },
+};
+
+// =====================================================================
+// PIXEL ART — tudo desenhado por código em 320×180 e ampliado sem suavização
+// =====================================================================
+const LW = 320, LH = 180, PX = W / LW; // 5 unidades do mundo por pixel
+const OUTLINE = '#141414';
+function paintGrid(grid, w, h, outline) {
+  const out = grid.slice();
+  if (outline) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (grid[y * w + x]) continue;
+    const at = (dx, dy) => { const X = x + dx, Y = y + dy; return X >= 0 && Y >= 0 && X < w && Y < h && grid[Y * w + X]; };
+    if (at(1, 0) || at(-1, 0) || at(0, 1) || at(0, -1)) out[y * w + x] = OUTLINE;
+  }
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  for (let i = 0; i < out.length; i++) if (out[i]) { g.fillStyle = out[i]; g.fillRect(i % w, (i / w) | 0, 1, 1); }
+  return c;
+}
+const SPECIES = [
+  { name: 'Bem-te-vi', u: 1.25, beak: 3, beakH: 0.9, tail: 5, speed: [230, 330], body: '#7a5a33', wing: '#5e4527', belly: '#ffd31a', head: '#1a1a1a', brow: '#ffffff', beakC: '#1a1a1a', flap: 2.6, w: 5 },
+  { name: 'Sabiá-laranjeira', u: 1.2, beak: 3, beakH: 0.8, tail: 6, speed: [190, 290], body: '#8d7558', wing: '#6f5b43', belly: '#e0781e', head: '#8d7558', beakC: '#d4a62a', flap: 2.4, w: 5 },
+  { name: 'Tucano-toco', u: 1.45, beak: 12, beakH: 2.2, tail: 6, speed: [160, 240], body: '#151515', wing: '#2b2b2b', throat: '#fbf3cf', head: '#151515', beakC: '#ff8a1f', tip: '#151515', flap: 1.8, w: 3 },
+  { name: 'Arara-azul', u: 1.55, beak: 3, beakH: 1.5, tail: 15, tailW: 1.1, speed: [180, 270], body: '#2156d1', wing: '#173f9e', head: '#2a62e0', ring: '#ffd23f', beakC: '#1a1a1a', flap: 1.6, w: 2 },
+  { name: 'Beija-flor', u: 0.7, beak: 6, beakH: 0.35, tail: 3, speed: [320, 470], body: '#1fa673', wing: '#c9f2de', belly: '#bdf0d6', head: '#14905f', beakC: '#1a1a1a', flap: 12, hover: true, w: 3 },
+  { name: 'Gavião-carijó', u: 1.45, beak: 2.5, beakH: 1.1, tail: 7, speed: [300, 420], body: '#7a6a5a', wing: '#5f5245', belly: '#e3d6c2', bars: '#9c8670', head: '#6c5f51', beakC: '#f0bf3f', flap: 1.4, w: 1 },
+];
+const SPECIES_W = SPECIES.reduce((s, x) => s + x.w, 0);
+const pickSpecies = () => { let r = Math.random() * SPECIES_W; for (const s of SPECIES) if ((r -= s.w) < 0) return s; return SPECIES[0]; };
+// Sprite de pássaro virado para a direita; (0,0) do sprite = centro visual (onde a pontuação mede).
+function bakeBird(sp, frame) {
+  const u = sp.u, L = sp.beak, T = sp.tail;
+  const xa = Math.floor(-7 * u - T - 3), xb = Math.ceil(8 * u + L + 3), ya = Math.floor(-8 * u - 4), yb = Math.ceil(6 * u + 3);
+  const w = xb - xa, h = yb - ya, grid = new Array(w * h).fill(null);
+  const ang = [0.9, 0.05, -0.65][frame], ca = Math.cos(ang), sa = Math.sin(ang);
+  for (let iy = 0; iy < h; iy++) for (let ix = 0; ix < w; ix++) {
+    const x = ix + xa + 0.5 + u, y = iy + ya + 0.5 - 0.8 * u;
+    let col = null;
+    const tw = (sp.tailW || 1.5) * u * 0.8;
+    if (x < -4 * u && x > -4 * u - T && Math.abs(y + 0.3 * u) <= tw * (1 + ((-4 * u - x) / T) * 0.9)) col = sp.body;
+    const bx = x / (6 * u), by = y / (3.5 * u), inBody = bx * bx + by * by <= 1;
+    if (inBody) col = sp.body;
+    if (inBody && sp.belly) { const ex = (x - 1.2 * u) / (4.6 * u), ey = (y - 1.6 * u) / (2.2 * u); if (ex * ex + ey * ey <= 1) col = sp.bars && Math.floor(x + 50) % 3 === 0 ? sp.bars : sp.belly; }
+    const hx = x - 5 * u, hy = y + 2.3 * u, inHead = hx * hx + hy * hy <= (3.1 * u) ** 2;
+    if (inHead) col = sp.head;
+    if (inHead && sp.throat && hy > 0 && hx > -u) col = sp.throat;
+    if (inHead && sp.brow && Math.abs(hy + 1.1 * u) <= 0.5 && hx > -2.2 * u) col = sp.brow;
+    const b0 = 7.2 * u;
+    if (x >= b0 && x <= b0 + L) { const t = (x - b0) / L; if (Math.abs(y - (-2.1 * u + t * 0.9 * u)) <= sp.beakH * u * (1 - t * 0.8) + 0.5) col = sp.tip && t > 0.85 ? sp.tip : sp.beakC; }
+    const sx = x + 0.5 * u, sy = y + 1.4 * u, wx = sx * ca + sy * sa, wy = -sx * sa + sy * ca, qx = (wx + 3.2 * u) / (4.3 * u), qy = wy / (1.5 * u);
+    if (qx * qx + qy * qy <= 1) col = sp.wing;
+    grid[iy * w + ix] = col;
+  }
+  const put = (sxp, syp, col) => { const ix = Math.round(sxp - u - xa - 0.5), iy = Math.round(syp + 0.8 * u - ya - 0.5); if (ix >= 0 && iy >= 0 && ix < w && iy < h) grid[iy * w + ix] = col; };
+  if (sp.ring) { put(5.2 * u, -2.9 * u, sp.ring); put(6 * u, -2.2 * u, sp.ring); put(7 * u, -1.2 * u, sp.ring); }
+  if (u >= 1) { put(6 * u, -2.9 * u, '#ffffff'); put(6 * u + 1, -2.9 * u, '#111111'); } else put(6 * u, -2.9 * u, '#111111');
+  return { c: paintGrid(grid, w, h, true), ox: -xa, oy: -ya };
+}
+// Mico: personagem original, mico-leão-dourado pendurado num balanço de cipó. Quadro 0 = parado, 1 e 2 = rindo.
+function bakeMico(frame) {
+  const w = 28, h = 46, ox = 14, oy = 17, grid = new Array(w * h).fill(null);
+  const bob = frame === 2 ? 1 : 0;
+  for (let iy = 0; iy < h; iy++) for (let ix = 0; ix < w; ix++) {
+    const X = ix - ox + 0.5, Y = iy - oy + 0.5 - bob;
+    let col = null;
+    const tx = Math.sin(Y * 0.33) * 2 + 1;
+    if (Y > 15 && Y < 25 && Math.abs(X - tx) < 1.1) col = '#d97a12';
+    if (Y >= 24 && Y < 28 && Math.abs(X - tx) < 2) col = '#f7b23b';
+    if ((X / 5) ** 2 + ((Y - 11) / 6.5) ** 2 <= 1) col = '#ef8f1a';
+    if (Y > 13 && Y < 19 && Math.abs(Math.abs(X) - 3.5) < 1.2) col = '#d97a12';
+    if (Y < 8 && Y > -13 && (Math.abs(X - 5.5 + (Y + 13) * 0.06) < 1.1 || Math.abs(X + 5.5 - (Y + 13) * 0.06) < 1.1)) col = '#d97a12';
+    if (Y >= -16 && Y < -12.5 && Math.abs(Math.abs(X) - 5.5) < 1.5) col = '#5a2f1f';
+    const r = Math.hypot(X, Y), a = Math.atan2(Y, X);
+    if (r <= 8 + Math.sin(a * 7) * 1.3) col = Y < -2 && X < 1 ? '#ffc04d' : '#f29a1f';
+    if ((X / 3.8) ** 2 + ((Y - 1) / 4.4) ** 2 <= 1) col = '#7a3f2c';
+    grid[iy * w + ix] = col;
+  }
+  const put = (x, y, col) => { const X = x + ox, Y = y + oy + bob; if (X >= 0 && Y >= 0 && X < w && Y < h) grid[Y * w + X] = col; };
+  if (frame === 0) { put(-2, 0, '#111'); put(1, 0, '#111'); put(-1, 3, '#2a0f0f'); put(0, 3, '#2a0f0f'); }
+  else {
+    for (const [x, y] of [[-3, 0], [-2, -1], [-1, 0], [0, 0], [1, -1], [2, 0]]) put(x, y, '#111');
+    const mw = frame === 2 ? 2 : 1;
+    for (let y = 2; y <= 3 + mw; y++) for (let x = -mw; x < mw; x++) put(x, y, y === 3 + mw ? '#e05a5a' : '#2a0f0f');
+  }
+  return { c: paintGrid(grid, w, h, true), ox, oy };
+}
+function bakeCloud(parts) {
+  const w = 44, h = 16, grid = new Array(w * h).fill(null);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) for (const [cx, cy, r] of parts) if ((x + 0.5 - cx) ** 2 + (y + 0.5 - cy) ** 2 <= r * r) grid[y * w + x] = y > 10 ? '#d6e6f2' : '#ffffff';
+  return paintGrid(grid, w, h, false);
+}
+const BIRD_SPR = new Map(SPECIES.map(sp => [sp, [0, 1, 2].map(f => bakeBird(sp, f))]));
+const MICO_SPR = [0, 1, 2].map(bakeMico);
+const CLOUD_SPR = [bakeCloud([[8, 10, 5], [16, 7, 7], [26, 8, 7], [34, 11, 5]]), bakeCloud([[10, 10, 6], [20, 8, 7], [30, 10, 5]])];
+const FLAP = [0, 1, 2, 1];
+function drawSprite(c, spr, x, y, flip) {
+  if (!flip) { c.drawImage(spr.c, x - spr.ox, y - spr.oy); return; }
+  c.save(); c.translate(x, y); c.scale(-1, 1); c.drawImage(spr.c, -spr.ox, -spr.oy); c.restore();
+}
+
+// =====================================================================
+// TV (host): simula, desenha e pontua. O servidor só repassa.
+// =====================================================================
+let socket = null;
+const tv = { phase: 'gate', players: new Map(), birds: [], history: [], texts: [], locks: [], rings: [], crops: [], flash: 0, lastFlash: 0, timeLeft: ROUND, countdown: 0, spawnIn: 0, code: '' };
+const mico = { y: -40, mode: 'hidden', t: 0 };
+const view = { S: 1, s: 1 / PX, ox: 0, oy: 0 };
+let canvas, ctx, lo, lc, backdrop, birdSeq = 0, lastFrame = 0, lastSecond = -1;
+
+function startTv() {
+  $('tv').hidden = false;
+  canvas = $('scene'); ctx = canvas.getContext('2d');
+  lo = document.createElement('canvas'); lo.width = LW; lo.height = LH; lc = lo.getContext('2d');
+  backdrop = document.createElement('canvas');
+  try { document.fonts && document.fonts.load('16px "Press Start 2P"'); } catch (e) {}
+  paintBackdrop(); sizeCanvas(); renderRoster(); marquee();
+  requestAnimationFrame(loop);
+  addEventListener('resize', sizeCanvas);
+
+  let saved = {};
+  try { saved = JSON.parse(sessionStorage.getItem('oop-room') || '{}'); } catch (e) {}
+  socket = io({ query: { role: 'host', code: saved.code || '', key: saved.key || '' }, reconnectionDelayMax: 3000 });
+  socket.on('connect', renderNet);
+  socket.on('disconnect', renderNet);
+  socket.on('room', r => {
+    tv.code = r.code;
+    socket.io.opts.query = { role: 'host', code: r.code, key: r.key }; // ao reconectar, volta para a mesma sala
+    try { sessionStorage.setItem('oop-room', JSON.stringify({ code: r.code, key: r.key })); } catch (e) {}
+    $('codeBig').textContent = $('codeSmall').textContent = r.code;
+    $('qrBig').src = $('qrSmall').src = r.qr; $('qrBig').hidden = false;
+    $('joinUrl').textContent = r.joinUrl;
+    renderNet(); pushHostState();
+  });
+  socket.on('join', (id, name) => {
+    let pl = tv.players.get(id);
+    if (!pl) { pl = newPlayer(id, cleanName(name), false); tv.players.set(id, pl); }
+    pl.online = true; pl.name = cleanName(name) || pl.name;
+    renderRoster(); renderScoreboard(); pushHostState();
+  });
+  socket.on('leave', id => { const pl = tv.players.get(id); if (pl) { pl.online = false; renderRoster(); renderScoreboard(); } });
+  socket.on('aim', (id, x, y) => { const pl = tv.players.get(id); if (pl) { pl.target.x = clamp(num(x), 0, 1) * W; pl.target.y = clamp(num(y), 0, 1) * H; } });
+  socket.on('shot', id => { const pl = tv.players.get(id); if (pl) shoot(pl); });
+  socket.on('start', () => { if (tv.phase === 'lobby' || tv.phase === 'end') setPhase('countdown'); });
+}
+function renderNet() {
+  const online = [...tv.players.values()].filter(p => !p.local && p.online).length;
+  $('netStatus').textContent = !socket.connected ? 'Sem conexão com o servidor. Tentando de novo…'
+    : !tv.code ? 'Criando a sala…'
+    : online ? `${online} câmera(s) conectada(s). Mais gente pode entrar pelo QR Code.` : 'Pronto. Escaneie o QR Code com o celular (na mesma Wi‑Fi) ou digite o endereço abaixo dele.';
+}
+$('armTv').onclick = () => {
+  unlockAudio(); wakeLock();
+  try { const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); p && p.catch(() => {}); } catch (e) {}
+  setPhase('lobby');
+};
+$('startBtn').onclick = $('againBtn').onclick = () => { unlockAudio(); setPhase('countdown'); };
+$('mouseBtn').onclick = () => {
+  if (tv.players.has('mouse')) tv.players.delete('mouse');
+  else tv.players.set('mouse', newPlayer('mouse', 'Mouse', true));
+  $('mouseBtn').textContent = tv.players.has('mouse') ? 'Tirar o mouse' : 'Jogar com o mouse';
+  $('tv').classList.toggle('aim', tv.players.has('mouse'));
+  renderRoster(); renderScoreboard();
+};
+$('scene').addEventListener('pointermove', e => {
+  const pl = tv.players.get('mouse'); if (!pl) return;
+  const r = canvas.getBoundingClientRect(), k = canvas.width / r.width;
+  pl.target.x = clamp(((e.clientX - r.left) * k - view.ox) / view.s, 0, W);
+  pl.target.y = clamp(((e.clientY - r.top) * k - view.oy) / view.s, 0, H);
+});
+$('scene').addEventListener('pointerdown', () => { const pl = tv.players.get('mouse'); if (pl) shoot(pl); });
+
+function newPlayer(key, name, local) {
+  const used = new Set([...tv.players.values()].map(p => p.ci));
+  let ci = 0; while (used.has(ci) && ci < COLORS.length - 1) ci++;
+  return { key, name: name || `Câmera ${tv.players.size + 1}`, ci, color: COLORS[ci], local, online: true, score: 0, perfect: 0, best: null, n: 0, aim: { x: W / 2, y: H / 2 }, target: { x: W / 2, y: H / 2 }, cool: 0, result: null };
+}
+function pushHostState() {
+  if (!socket || !socket.connected) return;
+  for (const pl of tv.players.values()) {
+    if (pl.local || !pl.online) continue;
+    socket.emit('to', pl.key, { phase: tv.phase, left: Math.ceil(tv.timeLeft), s: pl.score, c: pl.ci, n: pl.n, k: pl.result ? pl.result.k : '' });
+  }
+}
+function setPhase(ph) {
+  tv.phase = ph;
+  $('gate').hidden = ph !== 'gate';
+  $('lobby').hidden = ph !== 'lobby';
+  $('countdown').hidden = ph !== 'countdown';
+  $('results').hidden = ph !== 'end';
+  $('qrCorner').hidden = !(ph === 'countdown' || ph === 'playing') || !tv.code;
+  $('clock').hidden = $('scoreboard').hidden = !(ph === 'countdown' || ph === 'playing');
+  if (ph === 'countdown') {
+    tv.countdown = COUNTDOWN; tv.timeLeft = ROUND; tv.birds = []; tv.texts = []; tv.locks = []; tv.spawnIn = 0.4;
+    for (const pl of tv.players.values()) { pl.score = 0; pl.perfect = 0; pl.best = null; pl.result = null; }
+    $('countdown').textContent = COUNTDOWN; sfx.beep(false); renderScoreboard();
+  }
+  if (ph === 'end') { sfx.jingle(); renderResults(); }
+  renderClock(); pushHostState();
+}
+function shoot(pl) {
+  const now = performance.now();
+  if (tv.phase !== 'playing' || now - pl.cool < 400) return;
+  pl.cool = now;
+  const r = judge(tv.history, pl.key, now);
+  const aim = r.aim || { x: pl.aim.x, y: pl.aim.y };
+  pl.score += r.pts; if (r.key === 'perfect') pl.perfect++;
+  pl.n++; pl.result = { k: r.key };
+  tv.rings.push({ x: aim.x, y: aim.y, age: 0 });
+  if (now - tv.lastFlash > 340) { tv.lastFlash = now; tv.flash = reduceMotion ? 0.15 : 0.5; } // clarão de tela no máximo 3x/s (fotossensibilidade)
+  sfx.shutter();
+  if (r.key === 'perfect') { sfx.perfect(); tv.locks.push({ id: r.bird.id, age: 0 }); }
+  else if (r.key === 'good') sfx.good();
+  else if (r.key === 'miss') micoLaugh();
+  tv.texts.push({ x: aim.x, y: aim.y - 70, text: LABELS[r.key], key: r.key, age: 0 });
+  if (r.key !== 'miss' && (!pl.best || r.d < pl.best.d)) tv.crops.push({ pl, d: r.d, label: TIERS.find(t => t.key === r.key).label, sp: r.bird.sp, id: r.bird.id, off: { x: aim.x - r.bird.x, y: aim.y - r.bird.y }, aim });
+  renderScoreboard(); pushHostState();
+}
+function micoLaugh() {
+  if (mico.mode === 'hidden' || mico.mode === 'up') { mico.mode = 'down'; mico.t = 0; sfx.laugh(); }
+  else if (mico.mode === 'laugh') mico.t = Math.min(mico.t, 0.5);
+}
+
+// ---------- pássaros ----------
+function spawnBird() {
+  const sp = pickSpecies(), left = Math.random() < 0.5;
+  const b = { id: ++birdSeq, sp, x: left ? -90 : W + 90, y: rand(110, H * 0.6), heading: left ? 0 : Math.PI, speed: rand(sp.speed[0], sp.speed[1]), targetSpeed: 0, targetHeading: 0, life: rand(5, 8), age: 0, leaving: false, gone: false, turnIn: 0, phase: Math.random() * 4, rx: 7 * sp.u * PX, ry: 4.4 * sp.u * PX };
+  retarget(b); if (tv.phase === 'playing') sfx.chirp(); return b;
+}
+function retarget(b) {
+  const tx = rand(160, W - 160), ty = rand(100, H * 0.62);
+  b.targetHeading = Math.atan2(ty - b.y, tx - b.x);
+  b.targetSpeed = b.sp.hover && Math.random() < 0.35 ? 12 : rand(b.sp.speed[0], b.sp.speed[1]);
+  b.turnIn = rand(0.6, 1.6);
+}
+function updateBird(b, dt) {
+  b.age += dt;
+  if (!b.leaving) {
+    if ((b.turnIn -= dt) <= 0) retarget(b);
+    if (b.age > b.life) { b.leaving = true; b.targetHeading = b.x < W / 2 ? -Math.PI + 0.45 : -0.45; b.targetSpeed = b.sp.speed[1] * 1.35; }
+  }
+  let diff = b.targetHeading - b.heading;
+  diff = Math.atan2(Math.sin(diff), Math.cos(diff));
+  b.heading += clamp(diff, -2.6 * dt, 2.6 * dt);
+  b.speed += (b.targetSpeed - b.speed) * Math.min(1, dt * 2);
+  b.x += Math.cos(b.heading) * b.speed * dt;
+  b.y += Math.sin(b.heading) * b.speed * dt;
+  if (b.leaving && (b.x < -160 || b.x > W + 160 || b.y < -160)) b.gone = true;
+}
+
+// ---------- loop ----------
+function loop(now) {
+  const dt = Math.min(0.05, (now - (lastFrame || now)) / 1000); lastFrame = now;
+  update(dt, now); render(now);
+  requestAnimationFrame(loop);
+}
+function update(dt, now) {
+  for (const pl of tv.players.values()) { const k = pl.local ? 1 : Math.min(1, dt * 22); pl.aim.x += (pl.target.x - pl.aim.x) * k; pl.aim.y += (pl.target.y - pl.aim.y) * k; }
+  if (tv.phase === 'countdown') {
+    const before = Math.ceil(tv.countdown); tv.countdown -= dt; const after = Math.ceil(tv.countdown);
+    if (after !== before && after > 0) { sfx.beep(false); $('countdown').textContent = after; }
+    if (tv.countdown <= 0) { sfx.beep(true); setPhase('playing'); }
+  } else if (tv.phase === 'playing') {
+    tv.timeLeft -= dt;
+    if (tv.timeLeft <= 0) { tv.timeLeft = 0; setPhase('end'); }
+    else if (Math.ceil(tv.timeLeft) !== lastSecond) { renderClock(); pushHostState(); }
+  }
+  const maxBirds = tv.phase === 'playing' ? Math.min(6, 2 + tv.players.size) : tv.phase === 'countdown' || tv.phase === 'gate' ? 0 : 2;
+  tv.spawnIn -= dt;
+  if (tv.birds.length < maxBirds && tv.spawnIn <= 0) { tv.birds.push(spawnBird()); tv.spawnIn = rand(0.6, 1.6); }
+  for (const b of tv.birds) updateBird(b, dt);
+  tv.birds = tv.birds.filter(b => !b.gone);
+  const aims = {};
+  for (const pl of tv.players.values()) if (pl.online) aims[pl.key] = { x: pl.aim.x, y: pl.aim.y };
+  tv.history.push({ t: now, aims, birds: tv.birds.map(b => ({ id: b.id, x: b.x, y: b.y, rx: b.rx, ry: b.ry, sp: b.sp.name })) });
+  while (tv.history.length && now - tv.history[0].t > 400) tv.history.shift();
+  if (mico.mode === 'down') { mico.y += 150 * dt; if (mico.y >= 30) { mico.y = 30; mico.mode = 'laugh'; mico.t = 0; } }
+  else if (mico.mode === 'laugh') { if ((mico.t += dt) > 1.5) mico.mode = 'up'; }
+  else if (mico.mode === 'up') { mico.y -= 170 * dt; if (mico.y <= -40) { mico.y = -40; mico.mode = 'hidden'; } }
+  tv.flash = Math.max(0, tv.flash - dt * 3.2);
+  for (const list of [tv.texts, tv.locks, tv.rings]) for (const f of list) f.age += dt;
+  tv.texts = tv.texts.filter(f => f.age < 1.2); tv.locks = tv.locks.filter(f => f.age < 0.7); tv.rings = tv.rings.filter(f => f.age < 0.35);
+}
+
+// ---------- desenho ----------
+function sizeCanvas() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.max(1, Math.round(canvas.clientWidth * dpr));
+  canvas.height = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  const fit = Math.min(canvas.width / LW, canvas.height / LH);
+  view.S = Math.floor(fit) >= 1 && Math.floor(fit) / fit > 0.85 ? Math.floor(fit) : fit; // escala inteira quando sobra pouca borda: pixels iguais
+  view.s = view.S / PX;
+  view.ox = Math.round((canvas.width - LW * view.S) / 2); view.oy = Math.round((canvas.height - LH * view.S) / 2);
+}
+function paintBackdrop() {
+  backdrop.width = LW; backdrop.height = LH;
+  const g = backdrop.getContext('2d');
+  const dot = (x, y, col) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); };
+  const bands = [[0, '#3a86d8'], [28, '#4f9de6'], [54, '#69b3ef'], [78, '#8cc8f3'], [96, '#b3dcf3'], [108, '#e4e6cc'], [116, '#f6d9a0']];
+  bands.forEach(([y0, col], i) => {
+    const y1 = i + 1 < bands.length ? bands[i + 1][0] : 140;
+    g.fillStyle = col; g.fillRect(0, y0, LW, y1 - y0);
+    if (i) for (let x = 0; x < LW; x++) { if (x % 2 === 0) dot(x, y0, bands[i - 1][1]); if (x % 4 === 1) dot(x, y0 + 1, bands[i - 1][1]); } // pontilhado 8 bits
+  });
+  for (let y = -14; y <= 14; y++) for (let x = -14; x <= 14; x++) { const r = Math.hypot(x, y); if (r <= 10.5) dot(262 + x, 38 + y, '#fff4c2'); else if (r <= 13 && (x + y) % 2 === 0) dot(262 + x, 38 + y, '#ffe28a'); }
+  for (let x = 0; x < LW; x++) { // Serra do Mar
+    const h1 = 104 + Math.round(8 * Math.sin(x * 0.04 + 0.5) + 4 * Math.sin(x * 0.11 + 2));
+    g.fillStyle = '#7aa7ad'; g.fillRect(x, h1, 1, 60); dot(x, h1, '#a2c6c6');
+    const h2 = 121 + Math.round(5 * Math.sin(x * 0.06 + 1.2) + 3 * Math.sin(x * 0.17));
+    g.fillStyle = '#55915f'; g.fillRect(x, h2, 1, 60); dot(x, h2, '#70ad72');
+  }
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const blob = (cx, cy, r, col, hi) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r) dot(cx + x, cy + y, hi && x + y < -r * 0.6 ? hi : col); };
+  for (let x = -4; x < LW + 8; x += 9 + Math.floor(rnd() * 7)) blob(x, 138 - Math.floor(rnd() * 4), 6 + Math.floor(rnd() * 4), '#2f7040', '#3f8a4c');
+  for (let x = -4; x < LW + 8; x += 8 + Math.floor(rnd() * 6)) blob(x, 152 - Math.floor(rnd() * 3), 7 + Math.floor(rnd() * 4), '#225a33', '#2f7040');
+  g.fillStyle = '#1b4a2b'; g.fillRect(0, 156, LW, 24);
+  g.fillStyle = '#163d24'; g.fillRect(0, 168, LW, 12);
+  for (let x = 0; x < LW; x += 2) dot(x + ((x / 2) % 2), 167, '#163d24');
+  for (const base of [28, 246]) { // palmeiras-juçara
+    for (let y = 104; y < 160; y++) { const x = base + Math.round(Math.sin((160 - y) / 56 * 1.2) * 3); g.fillStyle = y % 4 ? '#5b4a32' : '#3f3222'; g.fillRect(x, y, 2, 1); }
+    const tx = base + Math.round(Math.sin(1.2) * 3) + 1;
+    for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.5; for (let t = 1; t < 15; t++) dot(Math.round(tx + Math.cos(a) * t), Math.round(103 + Math.sin(a) * t + (t * t) / 26), t % 3 ? '#2c6e3a' : '#45924f'); }
+  }
+}
+function pxBrackets(c, x, y, hw, hh, len, color) {
+  c.fillStyle = color;
+  c.fillRect(x - hw, y - hh, len, 1); c.fillRect(x - hw, y - hh, 1, len);
+  c.fillRect(x + hw - len + 1, y - hh, len, 1); c.fillRect(x + hw, y - hh, 1, len);
+  c.fillRect(x - hw, y + hh, len, 1); c.fillRect(x - hw, y + hh - len + 1, 1, len);
+  c.fillRect(x + hw - len + 1, y + hh, len, 1); c.fillRect(x + hw, y + hh - len + 1, 1, len);
+}
+function doCrops() {
+  for (const k of tv.crops) {
+    const live = tv.birds.find(b => b.id === k.id);
+    const cx = clamp(Math.round((live ? live.x + k.off.x : k.aim.x) / PX), 42, LW - 42), cy = clamp(Math.round((live ? live.y + k.off.y : k.aim.y) / PX), 28, LH - 28);
+    const t = document.createElement('canvas'); t.width = 252; t.height = 168;
+    const tc = t.getContext('2d'); tc.imageSmoothingEnabled = false;
+    tc.drawImage(lo, cx - 42, cy - 28, 84, 56, 0, 0, 252, 168);
+    tc.fillStyle = 'rgba(255,255,255,.4)';
+    for (const f of [1, 2]) { tc.fillRect(f * 84, 0, 2, 168); tc.fillRect(0, f * 56, 252, 2); }
+    k.pl.best = { d: k.d, label: k.label, sp: k.sp, img: t.toDataURL('image/png') };
+  }
+  tv.crops.length = 0;
+}
+function hiText(text, lx, ly, size, color) {
+  const S = view.S, x = view.ox + lx * S, y = view.oy + ly * S;
+  ctx.font = `${Math.max(8, Math.round(size * S))}px "Press Start 2P", monospace`;
+  ctx.lineWidth = Math.max(3, S * 1.5); ctx.strokeStyle = '#000'; ctx.strokeText(text, x, y);
+  ctx.fillStyle = color; ctx.fillText(text, x, y);
+}
+function render(now) {
+  const c = lc;
+  c.drawImage(backdrop, 0, 0);
+  CLOUD_SPR.forEach((cl, i) => c.drawImage(cl, Math.round(((i * 170 + now / 1000 * (4 + i * 2)) % (LW + 60)) - 50), 14 + i * 22));
+  CLOUD_SPR.forEach((cl, i) => c.drawImage(cl, Math.round(((i * 170 + 90 + now / 1000 * (3 + i)) % (LW + 60)) - 50), 46 + i * 10));
+  for (const b of tv.birds) {
+    const spr = BIRD_SPR.get(b.sp)[FLAP[Math.floor((now / 1000 * b.sp.flap * 4 + b.phase)) % 4]];
+    drawSprite(c, spr, Math.round(b.x / PX), Math.round(b.y / PX), Math.cos(b.heading) < 0);
+  }
+  if (mico.mode !== 'hidden') {
+    const mx = 292, my = Math.round(mico.y), hands = my - 15;
+    c.fillStyle = '#3c8a3c'; c.fillRect(mx - 7, 0, 1, Math.max(0, hands)); c.fillRect(mx + 6, 0, 1, Math.max(0, hands));
+    c.fillStyle = '#5ea85a'; for (let y = 3; y < hands; y += 6) { c.fillRect(mx - 8, y, 1, 2); c.fillRect(mx + 7, y + 3, 1, 2); }
+    c.fillStyle = '#6b4a2a'; c.fillRect(mx - 8, hands, 16, 2);
+    drawSprite(c, MICO_SPR[mico.mode === 'laugh' ? 1 + (Math.floor(now / 110) % 2) : 0], mx, my, false);
+  }
+  if (tv.crops.length) doCrops(); // a foto sai da cena limpa, antes das miras
+  for (const l of tv.locks) { // foco cravado
+    const b = tv.birds.find(x => x.id === l.id); if (!b) continue;
+    const grow = l.age < 0.15 ? 3 : 0;
+    pxBrackets(c, Math.round(b.x / PX), Math.round(b.y / PX), Math.round(b.rx / PX * 1.3) + grow, Math.round(b.ry / PX * 1.7) + grow, 4, '#ffcc33');
+  }
+  if (tv.phase !== 'gate') for (const pl of tv.players.values()) {
+    if (!pl.online) continue;
+    const x = Math.round(pl.aim.x / PX), y = Math.round(pl.aim.y / PX);
+    pxBrackets(c, x + 1, y + 1, 10, 7, 4, '#000'); pxBrackets(c, x, y, 10, 7, 4, pl.color);
+    c.fillStyle = '#000'; c.fillRect(x - 2, y + 1, 5, 1); c.fillRect(x + 1, y - 1, 1, 5);
+    c.fillStyle = pl.color; c.fillRect(x - 2, y, 5, 1); c.fillRect(x, y - 2, 1, 5);
+  }
+  for (const r of tv.rings) {
+    const rad = 6 + (r.age / 0.35) * 18, cx = r.x / PX, cy = r.y / PX;
+    c.fillStyle = r.age < 0.2 ? '#ffffff' : '#cfe7f2';
+    for (let a = 0; a < Math.PI * 2; a += 1 / rad) c.fillRect(Math.round(cx + Math.cos(a) * rad), Math.round(cy + Math.sin(a) * rad), 1, 1);
+  }
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = '#163d24'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(lo, view.ox, view.oy, LW * view.S, LH * view.S);
+  ctx.textAlign = 'center'; ctx.lineJoin = 'round';
+  if (tv.phase !== 'gate') for (const pl of tv.players.values()) if (pl.online) hiText(pl.name.toUpperCase(), pl.aim.x / PX, pl.aim.y / PX + 17, 4, pl.color);
+  for (const t of tv.texts) {
+    const p = t.age / 1.2;
+    ctx.globalAlpha = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25;
+    hiText(t.text, clamp(t.x / PX, 72, LW - 72), t.y / PX - p * 10, t.key === 'perfect' ? 7 : 5.5, t.key === 'perfect' ? '#ffcc33' : t.key === 'miss' ? '#ff9d9d' : '#ffffff');
+  }
+  ctx.globalAlpha = 1;
+  if (mico.mode === 'laugh') { ctx.textAlign = 'right'; hiText('HA HA HA!', 274, Math.round(mico.y) + 2 + (Math.floor(now / 110) % 2), 6, '#ffcc33'); }
+  if (tv.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${tv.flash})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+}
+function marquee() { // letreiro animado na tela de abertura
+  const cv = $('marquee'), g = cv.getContext('2d'), spr = BIRD_SPR.get(SPECIES[0]);
+  const tick = now => {
+    if (tv.phase !== 'gate') return;
+    g.fillStyle = '#4f9de6'; g.fillRect(0, 0, 128, 32);
+    g.drawImage(CLOUD_SPR[0], Math.round(((now / 120) % 180) - 44), 2);
+    g.fillStyle = '#1b4a2b'; g.fillRect(0, 28, 128, 4);
+    drawSprite(g, spr[FLAP[Math.floor(now / 1000 * 2.6 * 4) % 4]], Math.round(((now / 30) % 170) - 20), 16 + Math.round(Math.sin(now / 400) * 3), false);
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+
+// ---------- HUD (DOM) ----------
+function renderClock() {
+  const s = Math.max(0, Math.ceil(tv.timeLeft)); lastSecond = s;
+  $('clock').textContent = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  $('clock').classList.toggle('low', tv.phase === 'playing' && s <= 10);
+}
+function dot(color) { const i = document.createElement('i'); i.style.setProperty('--c', color); return i; }
+function renderScoreboard() {
+  const ol = $('scoreboard'); ol.replaceChildren();
+  for (const pl of rankPlayers(tv.players.values())) {
+    const li = document.createElement('li'); li.classList.toggle('off', !pl.online);
+    const n = document.createElement('span'); n.textContent = pl.name.toUpperCase();
+    const b = document.createElement('b'); b.textContent = String(pl.score).padStart(4, '0');
+    li.append(dot(pl.color), n, b); ol.append(li);
+  }
+}
+function renderRoster() {
+  const ul = $('roster'); ul.replaceChildren();
+  const list = [...tv.players.values()];
+  for (const pl of list) { const li = document.createElement('li'); const n = document.createElement('span'); n.textContent = pl.online ? pl.name : `${pl.name} (saiu)`; li.append(dot(pl.color), n); ul.append(li); }
+  if (!list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Nenhuma câmera conectada ainda'; ul.append(li); }
+  $('startBtn').disabled = !list.some(p => p.online);
+  if (socket) renderNet();
+}
+function renderResults() {
+  const ranked = rankPlayers(tv.players.values());
+  $('winner').textContent = !ranked.length || ranked[0].score === 0 ? 'Ninguém conseguiu foto. O Mico venceu.' : `${ranked[0].name} fez o melhor álbum!`;
+  if (!ranked.length || ranked[0].score === 0) micoLaugh();
+  const ol = $('ranking'); ol.replaceChildren();
+  ranked.forEach((pl, i) => {
+    const li = document.createElement('li');
+    const pos = document.createElement('span'); pos.className = 'pos'; pos.textContent = i + 1;
+    const fig = document.createElement('div');
+    if (pl.best) {
+      fig.className = 'print';
+      const img = document.createElement('img'); img.className = 'px-img'; img.src = pl.best.img; img.alt = `Melhor foto de ${pl.name}: ${pl.best.sp}`;
+      const cap = document.createElement('span'); cap.textContent = `${pl.best.sp} · ${pl.best.label}`;
+      fig.append(img, cap);
+    } else { fig.className = 'print none'; fig.textContent = 'sem foto'; }
+    const who = document.createElement('div'); who.className = 'who';
+    const nm = document.createElement('b'); nm.append(dot(pl.color), document.createTextNode(pl.name));
+    const meta = document.createElement('span');
+    meta.textContent = `${pl.perfect} perfeita${pl.perfect === 1 ? '' : 's'}` + (pl.best ? ` · melhor foto ${Math.round((1 - Math.min(1, pl.best.d)) * 100)}% centralizada` : '');
+    who.append(nm, meta);
+    const pts = document.createElement('span'); pts.className = 'pts'; pts.textContent = pl.score;
+    li.append(pos, fig, who, pts); ol.append(li);
+  });
+}
+
+// =====================================================================
+// CÂMERA (celular)
+// =====================================================================
+const cam = { joined: false, shown: 0, x: 0.5, y: 0.5, mode: 'touch', sens: 1, invX: false, invY: false, cool: 0, aimQueued: false };
+let msgTimer = 0;
+
+function startCam() {
+  $('cam').hidden = false;
+  const code = (location.pathname.split('/')[2] || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  $('codeIn').value = code;
+  $('nameIn').value = store.get('oop-name') || '';
+  try { const s = JSON.parse(store.get('oop-set') || '{}'); Object.assign(cam, { sens: s.sens || 1, invX: !!s.invX, invY: !!s.invY }); } catch (e) {}
+  $('sensIn').value = cam.sens; $('invXIn').checked = cam.invX; $('invYIn').checked = cam.invY;
+  (code ? $('nameIn') : $('codeIn')).focus();
+}
+function camToken() { // identifica esta câmera para voltar à partida (com os pontos) se a conexão cair
+  let t = store.get('oop-token');
+  if (!t) { t = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('oop-token', t); }
+  return t;
+}
+$('join').addEventListener('submit', e => {
+  e.preventDefault();
+  const code = $('codeIn').value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
+  const name = cleanName($('nameIn').value) || 'Fotógrafo';
+  if (code.length !== 4) { $('joinStatus').textContent = 'Digite as 4 letras da sala que aparecem na TV.'; return; }
+  store.set('oop-name', name);
+  if (socket) socket.disconnect();
+  $('joinStatus').textContent = 'Conectando…'; $('joinBtn').disabled = true;
+  socket = io({ query: { role: 'cam', room: code, name, token: camToken() }, reconnectionDelayMax: 3000 });
+  socket.on('joined', () => {
+    cam.joined = true; $('meName').textContent = name; $('join').hidden = true; $('vf').hidden = false;
+    wakeLock(); flushAim();
+  });
+  socket.on('nope', msg => { $('joinStatus').textContent = String(msg); $('joinBtn').disabled = false; });
+  socket.on('connect_error', () => { if (!cam.joined) { $('joinStatus').textContent = 'Não consegui falar com o servidor. O celular está na mesma Wi‑Fi do computador?'; $('joinBtn').disabled = false; } });
+  socket.on('disconnect', () => { if (cam.joined) setClock('Reconectando…', false); });
+  socket.on('host', online => { if (!online) setClock('TV desconectada', false); });
+  socket.on('state', onState);
+});
+function setClock(text, rec) { $('vfClock').textContent = text; $('vfClock').classList.toggle('rec', rec); }
+function onState(d) {
+  if (!d || typeof d !== 'object') return;
+  const playing = d.phase === 'playing', left = clamp(num(d.left), 0, 999);
+  setClock(playing ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : d.phase === 'countdown' ? 'Prepare-se' : d.phase === 'end' ? 'Fim da rodada' : d.phase === 'gate' ? 'Prepare a TV' : 'Aguardando', playing);
+  $('camStart').hidden = !(d.phase === 'lobby' || d.phase === 'end');
+  $('meChip').style.setProperty('--c', COLORS[num(d.c) % COLORS.length]);
+  $('vfScore').textContent = String(num(d.s)).padStart(4, '0');
+  if (num(d.n) > cam.shown && LABELS[d.k]) {
+    cam.shown = num(d.n);
+    showMsg(d.k === 'miss' ? 'PERDEU O FOCO! O Mico riu.' : LABELS[d.k], d.k);
+    if (d.k === 'perfect') vibrate([20, 40, 20]);
+  } else if (num(d.n) < cam.shown) cam.shown = num(d.n); // a TV recarregou
+}
+function showMsg(text, kind) {
+  const m = $('vfMsg'); m.textContent = text; m.className = `vf-msg show ${kind}`;
+  clearTimeout(msgTimer); msgTimer = setTimeout(() => m.classList.remove('show'), kind === 'info' ? 3500 : 1100);
+}
+function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+function flushAim() { if (socket && cam.joined) socket.volatile.emit('aim', Math.round(cam.x * 1e4) / 1e4, Math.round(cam.y * 1e4) / 1e4); }
+function sendAim() { if (cam.aimQueued) return; cam.aimQueued = true; requestAnimationFrame(() => { cam.aimQueued = false; flushAim(); }); } // no máximo 1 envio por quadro
+function moveAim(dx, dy) { cam.x = clamp(cam.x + dx, 0, 1); cam.y = clamp(cam.y + dy, 0, 1); sendAim(); }
+
+// Opção B — touchpad: movimento relativo, como trackpad de notebook
+const pad = $('pad'); let drag = null;
+pad.addEventListener('pointerdown', e => { if (cam.mode !== 'touch') return; drag = { id: e.pointerId, x: e.clientX, y: e.clientY }; try { pad.setPointerCapture(e.pointerId); } catch (er) {} $('vfHint').hidden = true; });
+pad.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const k = Math.min(pad.clientWidth, pad.clientHeight) * 0.9 / cam.sens; // atravessar o lado menor do pad = atravessar a TV
+  moveAim((e.clientX - drag.x) / k, (e.clientY - drag.y) / k * (W / H));
+  drag.x = e.clientX; drag.y = e.clientY;
+});
+const endDrag = e => { if (drag && e.pointerId === drag.id) drag = null; };
+pad.addEventListener('pointerup', endDrag); pad.addEventListener('pointercancel', endDrag);
+
+// Opção A — giroscópio: integra a velocidade angular (graus/s) e move a mira, como um air mouse
+let gyroLast = 0, gyroSeen = false, gyroListening = false;
+function setMode(m) { cam.mode = m; $('modeTouch').classList.toggle('on', m === 'touch'); $('modeGyro').classList.toggle('on', m === 'gyro'); $('vfHint').textContent = m === 'gyro' ? 'Mova o celular para mirar. “Centralizar” recalibra.' : 'Arraste o dedo aqui para mover a mira na TV'; $('vfHint').hidden = false; }
+function gyroFail(msg) { setMode('touch'); showMsg(msg, 'info'); }
+function enableGyro() {
+  if (!window.isSecureContext) return gyroFail('O giroscópio só funciona com HTTPS (veja o README). Seguimos no touchpad.');
+  setMode('gyro'); gyroSeen = false; gyroLast = 0;
+  const blocked = 'O navegador não liberou o giroscópio. Seguimos no touchpad.';
+  const go = () => { if (!gyroListening) { addEventListener('devicemotion', onMotion); gyroListening = true; } setTimeout(() => { if (!gyroSeen && cam.mode === 'gyro') gyroFail(blocked); }, 1500); };
+  const DME = window.DeviceMotionEvent;
+  if (DME && typeof DME.requestPermission === 'function') { // iOS: precisa vir de um toque
+    DME.requestPermission().then(r => (r === 'granted' ? go() : gyroFail('Permissão do giroscópio negada. Seguimos no touchpad.'))).catch(() => gyroFail(blocked));
+  } else if (DME) go();
+  else gyroFail('Este aparelho não informa o giroscópio. Seguimos no touchpad.');
+}
+function onMotion(e) {
+  const r = e.rotationRate; if (!r || (r.beta == null && r.gamma == null)) return;
+  gyroSeen = true; if (cam.mode !== 'gyro') return;
+  const now = performance.now(), dt = gyroLast ? Math.min(0.05, (now - gyroLast) / 1000) : 0; gyroLast = now;
+  const ang = ((((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0) % 360) + 360) % 360;
+  const b = r.beta || 0, g = r.gamma || 0;
+  // yaw = girar para a direita, pitch = apontar para cima (graus/s). Sinais variam por aparelho: os toggles "Inverter" calibram.
+  const [yaw, pitch] = ang === 90 ? [-b, -g] : ang === 270 ? [b, g] : ang === 180 ? [g, -b] : [-g, b];
+  const dz = v => (Math.abs(v) < 2 ? 0 : v); // zona morta contra drift
+  const fovX = 40 / cam.sens, fovY = fovX * H / W; // graus de giro para atravessar a tela
+  moveAim((cam.invX ? -1 : 1) * dz(yaw) * dt / fovX, -(cam.invY ? -1 : 1) * dz(pitch) * dt / fovY);
+}
+$('modeTouch').onclick = () => setMode('touch');
+$('modeGyro').onclick = enableGyro;
+$('recenter').onclick = () => { cam.x = cam.y = 0.5; flushAim(); };
+$('setBtn').onclick = () => { $('settings').hidden = false; };
+$('setClose').onclick = () => { $('settings').hidden = true; };
+const saveSet = () => { cam.sens = Number($('sensIn').value) || 1; cam.invX = $('invXIn').checked; cam.invY = $('invYIn').checked; store.set('oop-set', JSON.stringify({ sens: cam.sens, invX: cam.invX, invY: cam.invY })); };
+$('sensIn').oninput = $('invXIn').onchange = $('invYIn').onchange = saveSet;
+$('camStart').onclick = () => { if (socket && cam.joined) socket.emit('start'); };
+
+$('shutter').addEventListener('pointerdown', e => {
+  e.preventDefault();
+  const now = performance.now();
+  if (!cam.joined || now - cam.cool < 450) return;
+  cam.cool = now;
+  flushAim(); socket.emit('shot');
+  vibrate(25);
+  const bl = $('blink'); bl.classList.remove('go'); void bl.offsetWidth; bl.classList.add('go');
+  const sh = $('shutter'); sh.classList.add('wait'); setTimeout(() => sh.classList.remove('wait'), 450);
+});
+
+// ---------- rota: "/" é sempre a TV (host); "/c/ABCD" é a câmera ----------
+if (/^\/c(\/|$)/.test(location.pathname)) startCam(); else startTv();
+</script>
+</body>
+</html>
