@@ -8,6 +8,14 @@ Jogo de fotografia de pássaros para duas telas, num único `index.html`. Não t
 - O QR leva ao mesmo site com `?sala=ABCD`, e o celular vira a câmera.
 - O PeerJS (serviço gratuito) só apresenta TV e celular no começo. Depois, mira e disparos vão direto de um aparelho para o outro.
 
+## Viagem pelo Brasil (fases)
+
+- Quatro lugares: Mata Atlântica, Rio de Janeiro (Cristo e Pão de Açúcar), Sertão nordestino (mandacaru) e Amazônia (encontro das águas).
+- Em cada lugar, o grupo tem 60 s para somar a meta de pontos. Bateu a meta, viaja para o próximo lugar e todo mundo ganha +8 fotos.
+- Metas: 250, 350, 450 e 550 pontos, mais 120 por câmera extra (`STAGE_TARGETS` e `TARGET_PER_EXTRA_CAM` no `index.html`).
+- Cada lugar tem os próprios pássaros e fica um pouco mais rápido que o anterior.
+- Acabou o tempo ou o filme de todo mundo: a viagem termina ali.
+
 ## Regras da câmera instantânea
 
 - Cada câmera começa com um pacote de 8 fotos, e cada disparo gasta uma.
@@ -35,4 +43,4 @@ O GitHub Pages usa HTTPS, então o giroscópio funciona no celular.
 
 ## Testar as regras
 
-Abra o site com `?teste` no fim do endereço. A tela inicial mostra o resultado das 9 checagens de pontuação.
+Abra o site com `?teste` no fim do endereço. A tela inicial mostra o resultado das 10 checagens de pontuação.

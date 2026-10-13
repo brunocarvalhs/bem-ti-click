@@ -55,8 +55,14 @@ canvas.px,.px-img{image-rendering:pixelated;image-rendering:crisp-edges}
 #scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
 #tv.aim #scene{cursor:none}
 .hud{position:absolute;inset:0;pointer-events:none}
-.clock{position:absolute;top:3.5vh;left:50%;transform:translateX(-50%);font:clamp(22px,5vh,54px)/1 var(--pixel);color:var(--ink);background:#000;border:4px solid var(--line);padding:.35em .55em .3em;font-variant-numeric:tabular-nums}
+.top-center{position:absolute;top:3.5vh;left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:8px}
+.clock{font:clamp(22px,5vh,54px)/1 var(--pixel);color:var(--ink);background:#000;border:4px solid var(--line);padding:.35em .55em .3em;font-variant-numeric:tabular-nums}
 .clock.low{color:var(--sun)}
+.stage-info{display:flex;align-items:center;gap:10px;background:#000;border:4px solid var(--line);padding:8px 12px;font:clamp(9px,1.4vh,14px)/1 var(--pixel);white-space:nowrap;font-variant-numeric:tabular-nums}
+.meter{display:block;position:relative;width:clamp(80px,14vw,200px);height:12px;border:2px solid var(--line)}
+.meter i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--sun);transition:width .3s steps(6)}
+.travel{padding:30px;display:grid;gap:14px;max-width:640px;text-align:center;justify-items:center}
+.travel h2{font-size:clamp(18px,3.4vw,34px);color:var(--sun)}
 .scoreboard{position:absolute;top:3.5vh;left:3.5vw;list-style:none;margin:0;padding:10px 14px;display:grid;gap:8px;min-width:min(250px,30vw);background:#000;border:4px solid var(--line)}
 .scoreboard li{display:flex;align-items:center;gap:10px;font:clamp(10px,1.7vh,17px)/1.2 var(--pixel)}
 .scoreboard li.off{opacity:.45}
@@ -118,7 +124,7 @@ canvas.px,.px-img{image-rendering:pixelated;image-rendering:crisp-edges}
   .vf{grid-template-areas:"top top top" "side pad shut";grid-template-columns:minmax(118px,180px) minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);padding-left:calc(env(safe-area-inset-left,0px) + 16px);padding-right:calc(env(safe-area-inset-right,0px) + 16px)}
   .vf-side{flex-direction:column;align-items:stretch;justify-content:center}
 }
-.vf-top{grid-area:top;display:flex;align-items:center;gap:12px;font:10px/1 var(--pixel)}
+.vf-top{grid-area:top;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font:10px/1 var(--pixel)}
 .me{display:flex;align-items:center;gap:8px;min-width:0}
 .me i{width:12px;height:12px;background:var(--c,var(--dim));flex:none}
 .me b{font:700 17px var(--ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -184,7 +190,10 @@ canvas.px,.px-img{image-rendering:pixelated;image-rendering:crisp-edges}
   <canvas id="scene" class="px"></canvas>
   <div class="hud">
     <ol id="scoreboard" class="scoreboard" hidden></ol>
-    <div id="clock" class="clock" hidden>1:00</div>
+    <div class="top-center">
+      <div id="clock" class="clock" hidden>1:00</div>
+      <div id="stageInfo" class="stage-info" hidden><span id="stageName"></span><span class="meter" aria-hidden="true"><i id="stageFill"></i></span><span id="stageGoal"></span></div>
+    </div>
     <div id="qrCorner" class="qr-corner" hidden><div id="qrSmall" title="QR Code para entrar como câmera"></div><span id="codeSmall"></span></div>
   </div>
   <div class="overlay">
@@ -206,13 +215,19 @@ canvas.px,.px-img{image-rendering:pixelated;image-rendering:crisp-edges}
           <button id="startBtn" class="btn primary" type="button" disabled>Começar</button>
           <button id="mouseBtn" class="btn" type="button">Jogar com o mouse</button>
         </div>
-        <p class="dim small">Cada câmera começa com 8 fotos, e cada Foto Perfeita ganha mais 8. Rodada de 60 s: ganha quem somar mais pontos; no empate, vence a foto mais centralizada.</p>
+        <p class="dim small">Viagem pelo Brasil: Mata Atlântica, Rio de Janeiro, Sertão e Amazônia. Em cada lugar, o grupo tem 60 s para bater a meta de pontos e seguir viagem. Cada câmera começa com 8 fotos; Foto Perfeita e lugar novo dão mais 8.</p>
       </div>
     </div>
     <div id="countdown" class="countdown" hidden>3</div>
+    <div id="travel" class="panel travel" hidden>
+      <p class="eyebrow">Meta batida!</p>
+      <h2 id="travelTo"></h2>
+      <p id="travelNote" class="dim"></p>
+    </div>
     <div id="results" class="panel results" hidden>
-      <p class="eyebrow">Fim da rodada</p>
+      <p class="eyebrow">Fim da viagem</p>
       <h2 id="winner"></h2>
+      <p id="journey" class="dim"></p>
       <ol id="ranking" class="ranking"></ol>
       <div class="row"><button id="againBtn" class="btn primary" type="button">Jogar de novo</button></div>
     </div>
@@ -304,6 +319,9 @@ function rankPlayers(list) {
 // Câmera instantânea: cada disparo gasta uma foto; Foto Perfeita ganha um pacote novo.
 const FILM_START = 8, FILM_BONUS = 8;
 function filmAfter(film, key) { return Math.max(0, film - 1) + (key === 'perfect' ? FILM_BONUS : 0); }
+// Fases: o grupo soma pontos e precisa bater a meta do lugar antes do tempo acabar para viajar ao próximo.
+const STAGE_TARGETS = [250, 350, 450, 550], TARGET_PER_EXTRA_CAM = 120;
+function stageTarget(i, cams) { return STAGE_TARGETS[i] + TARGET_PER_EXTRA_CAM * Math.max(0, cams - 1); }
 // CORE-END
 
 const $ = id => document.getElementById(id);
@@ -370,20 +388,40 @@ const SPECIES = [
   { name: 'Arara-azul', u: 1.55, beak: 3, beakH: 1.5, tail: 15, tailW: 1.1, speed: [180, 270], body: '#2156d1', wing: '#173f9e', head: '#2a62e0', ring: '#ffd23f', beakC: '#1a1a1a', flap: 1.6, w: 2 },
   { name: 'Beija-flor', u: 0.7, beak: 6, beakH: 0.35, tail: 3, speed: [320, 470], body: '#1fa673', wing: '#c9f2de', belly: '#bdf0d6', head: '#14905f', beakC: '#1a1a1a', flap: 12, hover: true, w: 3 },
   { name: 'Gavião-carijó', u: 1.45, beak: 2.5, beakH: 1.1, tail: 7, speed: [300, 420], body: '#7a6a5a', wing: '#5f5245', belly: '#e3d6c2', bars: '#9c8670', head: '#6c5f51', beakC: '#f0bf3f', flap: 1.4, w: 1 },
+  { name: 'Tesourão', u: 1.4, beak: 4, beakH: 0.7, tail: 9, fork: true, wingL: 1.5, speed: [220, 320], body: '#1c1c22', wing: '#2a2a33', throat: '#d8323a', head: '#1c1c22', beakC: '#8a8a95', flap: 1.2, w: 3 },
+  { name: 'Asa-branca', u: 1.2, beak: 2, beakH: 0.6, tail: 6, speed: [260, 360], body: '#8f8a94', wing: '#a8a3ad', wingBand: '#f4f2f0', belly: '#b39aa8', head: '#a5899a', beakC: '#2a2a2a', flap: 3, w: 5 },
+  { name: 'Carcará', u: 1.4, beak: 3, beakH: 1.2, tail: 7, speed: [220, 320], body: '#3b2e24', wing: '#2e241c', belly: '#d9cdb4', bars: '#7a6650', head: '#efe6cf', cap: '#1d1712', beakC: '#e8c27a', flap: 1.6, w: 3 },
+  { name: 'Galo-de-campina', u: 1.05, beak: 2.5, beakH: 0.8, tail: 6, speed: [230, 330], body: '#6f737a', wing: '#585c63', belly: '#f2f2f2', head: '#d8262b', beakC: '#d9d9d9', flap: 2.8, w: 4 },
+  { name: 'Arara-vermelha', u: 1.55, beak: 3, beakH: 1.6, tail: 16, tailW: 1.1, speed: [180, 270], body: '#d7262b', wing: '#2a5bd1', wingBand: '#f5c518', head: '#e03030', ring: '#f4efe6', beakC: '#efe6d6', flap: 1.6, w: 4 },
+  { name: 'Gavião-real', u: 1.75, beak: 3, beakH: 1.4, tail: 8, speed: [200, 280], body: '#3c3c42', wing: '#2c2c32', belly: '#ecebe6', head: '#a3a3a8', cap: '#2a2a2e', beakC: '#2a2a2e', flap: 1.2, w: 1 },
 ];
-const SPECIES_W = SPECIES.reduce((s, x) => s + x.w, 0);
-const pickSpecies = () => { let r = Math.random() * SPECIES_W; for (const s of SPECIES) if ((r -= s.w) < 0) return s; return SPECIES[0]; };
+// A viagem: cada lugar tem paisagem, pássaros e ritmo próprios (as metas estão em STAGE_TARGETS).
+const STAGES = [
+  { name: 'Mata Atlântica', short: 'MATA', birds: ['Bem-te-vi', 'Sabiá-laranjeira', 'Tucano-toco', 'Beija-flor', 'Gavião-carijó'], speedK: 1, clouds: 0.9, ground: '#163d24', paint: paintMata },
+  { name: 'Rio de Janeiro', short: 'RIO', birds: ['Sabiá-laranjeira', 'Bem-te-vi', 'Beija-flor', 'Tesourão'], speedK: 1.1, clouds: 0.5, ground: '#171717', paint: paintRio },
+  { name: 'Sertão nordestino', short: 'SERTÃO', birds: ['Asa-branca', 'Carcará', 'Galo-de-campina', 'Beija-flor'], speedK: 1.2, clouds: 0.3, ground: '#8f5a2e', paint: paintSertao },
+  { name: 'Amazônia', short: 'AMAZÔNIA', birds: ['Arara-vermelha', 'Arara-azul', 'Tucano-toco', 'Gavião-real'], speedK: 1.3, clouds: 0.95, ground: '#123a20', paint: paintAmazonia },
+];
+const pickSpecies = names => {
+  const list = SPECIES.filter(s => names.includes(s.name));
+  let r = Math.random() * list.reduce((s, x) => s + x.w, 0);
+  for (const s of list) if ((r -= s.w) < 0) return s;
+  return list[0];
+};
 // Sprite de pássaro virado para a direita; (0,0) do sprite = centro visual (onde a pontuação mede).
 function bakeBird(sp, frame) {
-  const u = sp.u, L = sp.beak, T = sp.tail;
-  const xa = Math.floor(-7 * u - T - 3), xb = Math.ceil(8 * u + L + 3), ya = Math.floor(-8 * u - 4), yb = Math.ceil(6 * u + 3);
+  const u = sp.u, L = sp.beak, T = sp.tail, wl = sp.wingL || 1;
+  const xa = Math.floor(-7 * u * wl - T - 3), xb = Math.ceil(8 * u + L + 3), ya = Math.floor(-8 * u * wl - 4), yb = Math.ceil(6 * u * wl + 3);
   const w = xb - xa, h = yb - ya, grid = new Array(w * h).fill(null);
   const ang = [0.9, 0.05, -0.65][frame], ca = Math.cos(ang), sa = Math.sin(ang);
   for (let iy = 0; iy < h; iy++) for (let ix = 0; ix < w; ix++) {
     const x = ix + xa + 0.5 + u, y = iy + ya + 0.5 - 0.8 * u;
     let col = null;
     const tw = (sp.tailW || 1.5) * u * 0.8;
-    if (x < -4 * u && x > -4 * u - T && Math.abs(y + 0.3 * u) <= tw * (1 + ((-4 * u - x) / T) * 0.9)) col = sp.body;
+    if (x < -4 * u && x > -4 * u - T) {
+      const k = (-4 * u - x) / T, dy = Math.abs(y + 0.3 * u);
+      if (dy <= tw * (1 + k * 0.9) && !(sp.fork && k > 0.35 && dy < tw * k * 1.4)) col = sp.body; // fork = cauda em tesoura
+    }
     const bx = x / (6 * u), by = y / (3.5 * u), inBody = bx * bx + by * by <= 1;
     if (inBody) col = sp.body;
     if (inBody && sp.belly) { const ex = (x - 1.2 * u) / (4.6 * u), ey = (y - 1.6 * u) / (2.2 * u); if (ex * ex + ey * ey <= 1) col = sp.bars && Math.floor(x + 50) % 3 === 0 ? sp.bars : sp.belly; }
@@ -391,10 +429,11 @@ function bakeBird(sp, frame) {
     if (inHead) col = sp.head;
     if (inHead && sp.throat && hy > 0 && hx > -u) col = sp.throat;
     if (inHead && sp.brow && Math.abs(hy + 1.1 * u) <= 0.5 && hx > -2.2 * u) col = sp.brow;
+    if (inHead && sp.cap && hy < -1.2 * u) col = sp.cap;
     const b0 = 7.2 * u;
     if (x >= b0 && x <= b0 + L) { const t = (x - b0) / L; if (Math.abs(y - (-2.1 * u + t * 0.9 * u)) <= sp.beakH * u * (1 - t * 0.8) + 0.5) col = sp.tip && t > 0.85 ? sp.tip : sp.beakC; }
-    const sx = x + 0.5 * u, sy = y + 1.4 * u, wx = sx * ca + sy * sa, wy = -sx * sa + sy * ca, qx = (wx + 3.2 * u) / (4.3 * u), qy = wy / (1.5 * u);
-    if (qx * qx + qy * qy <= 1) col = sp.wing;
+    const sx = x + 0.5 * u, sy = y + 1.4 * u, wx = sx * ca + sy * sa, wy = -sx * sa + sy * ca, qx = (wx + 3.2 * u * wl) / (4.3 * u * wl), qy = wy / (1.5 * u);
+    if (qx * qx + qy * qy <= 1) col = sp.wingBand && qy < -0.35 ? sp.wingBand : sp.wing;
     grid[iy * w + ix] = col;
   }
   const put = (sxp, syp, col) => { const ix = Math.round(sxp - u - xa - 0.5), iy = Math.round(syp + 0.8 * u - ya - 0.5); if (ix >= 0 && iy >= 0 && ix < w && iy < h) grid[iy * w + ix] = col; };
@@ -455,7 +494,7 @@ const NET_ERR = ['network', 'server-error', 'socket-error', 'socket-closed'];
 const params = new URLSearchParams(location.search);
 let peer = null, netError = '';
 const conns = new Map(); // token da câmera -> conexão aberta
-const tv = { phase: 'gate', players: new Map(), birds: [], history: [], texts: [], locks: [], rings: [], crops: [], flash: 0, lastFlash: 0, timeLeft: ROUND, countdown: 0, spawnIn: 0, code: '', outT: 0 };
+const tv = { phase: 'gate', players: new Map(), birds: [], history: [], texts: [], locks: [], rings: [], crops: [], flash: 0, lastFlash: 0, timeLeft: ROUND, countdown: 0, spawnIn: 0, code: '', outT: 0, stage: 0, stagePts: 0, travelT: 0, won: false };
 const mico = { y: -40, mode: 'hidden', t: 0 };
 const view = { S: 1, s: 1 / PX, ox: 0, oy: 0 };
 let canvas, ctx, lo, lc, backdrop, birdSeq = 0, lastFrame = 0, lastSecond = -1;
@@ -466,7 +505,7 @@ function startTv() {
   lo = document.createElement('canvas'); lo.width = LW; lo.height = LH; lc = lo.getContext('2d');
   backdrop = document.createElement('canvas');
   try { document.fonts && document.fonts.load('16px "Press Start 2P"'); } catch (e) {}
-  paintBackdrop(); sizeCanvas(); renderRoster(); marquee();
+  paintBackdrop(0); sizeCanvas(); renderRoster(); marquee();
   requestAnimationFrame(loop);
   addEventListener('resize', sizeCanvas);
 
@@ -558,6 +597,7 @@ function selfCheck() { // abra o site com ?teste para conferir as regras de pont
     [rankPlayers([{ name: 'A', score: 100, perfect: 1, best: { d: 0.15 } }, { name: 'B', score: 100, perfect: 1, best: { d: 0.05 } }])[0].name, 'B', 'empate vai para a foto mais centralizada'],
     [filmAfter(1, 'perfect'), FILM_BONUS, 'foto perfeita ganha um pacote novo'],
     [filmAfter(1, 'good'), 0, 'cada disparo gasta uma foto'],
+    [stageTarget(1, 2), 470, 'meta da fase cresce com mais câmeras'],
   ];
   const fails = cases.filter(([got, want]) => got !== want).map(c => c[2]);
   return fails.length ? `FALHOU: ${fails.join('; ')}` : `ok (${cases.length} checagens)`;
@@ -591,7 +631,7 @@ function newPlayer(key, name, local) {
 function pushHostState() {
   for (const [token, conn] of conns) {
     const pl = tv.players.get(token);
-    if (pl && conn.open) conn.send({ t: 'state', phase: tv.phase, left: Math.ceil(tv.timeLeft), s: pl.score, c: pl.ci, n: pl.n, f: pl.film, k: pl.result ? pl.result.k : '' });
+    if (pl && conn.open) conn.send({ t: 'state', phase: tv.phase, left: Math.ceil(tv.timeLeft), s: pl.score, c: pl.ci, n: pl.n, f: pl.film, st: tv.stage, k: pl.result ? pl.result.k : '' });
   }
 }
 function setPhase(ph) {
@@ -599,16 +639,39 @@ function setPhase(ph) {
   $('gate').hidden = ph !== 'gate';
   $('lobby').hidden = ph !== 'lobby';
   $('countdown').hidden = ph !== 'countdown';
+  $('travel').hidden = ph !== 'travel';
   $('results').hidden = ph !== 'end';
-  $('qrCorner').hidden = !(ph === 'countdown' || ph === 'playing') || !tv.code;
-  $('clock').hidden = $('scoreboard').hidden = !(ph === 'countdown' || ph === 'playing');
+  const live = ph === 'countdown' || ph === 'playing' || ph === 'travel';
+  $('qrCorner').hidden = !live || !tv.code;
+  $('clock').hidden = !live || ph === 'travel';
+  $('scoreboard').hidden = $('stageInfo').hidden = !live;
   if (ph === 'countdown') {
-    tv.countdown = COUNTDOWN; tv.timeLeft = ROUND; tv.birds = []; tv.texts = []; tv.locks = []; tv.spawnIn = 0.4; tv.outT = 0;
+    tv.countdown = COUNTDOWN; tv.won = false;
     for (const pl of tv.players.values()) { pl.score = 0; pl.perfect = 0; pl.best = null; pl.result = null; pl.film = FILM_START; }
+    startStage(0);
     $('countdown').textContent = COUNTDOWN; sfx.beep(false); renderScoreboard();
   }
   if (ph === 'end') { sfx.jingle(); renderResults(); }
   renderClock(); pushHostState();
+}
+// Chega num lugar novo: paisagem, pássaros, meta e cronômetro da fase.
+function startStage(i) {
+  tv.stage = i; tv.stagePts = 0; tv.timeLeft = ROUND; tv.outT = 0;
+  tv.birds = []; tv.texts = []; tv.locks = []; tv.history = []; tv.spawnIn = 0.4;
+  paintBackdrop(i); renderStage();
+}
+const onlineCams = () => Math.max(1, [...tv.players.values()].filter(p => p.online).length);
+function renderStage() {
+  const goal = stageTarget(tv.stage, onlineCams());
+  $('stageName').textContent = `${tv.stage + 1}/${STAGES.length} ${STAGES[tv.stage].short}`;
+  $('stageGoal').textContent = `${Math.min(tv.stagePts, goal)}/${goal}`;
+  $('stageFill').style.width = `${Math.min(100, tv.stagePts / goal * 100)}%`;
+}
+function stageClear() { // meta batida: viaja para o próximo lugar (ou termina a volta ao Brasil)
+  if (tv.stage === STAGES.length - 1) { tv.won = true; return setPhase('end'); }
+  $('travelTo').textContent = `Próxima parada: ${STAGES[tv.stage + 1].name}`;
+  $('travelNote').textContent = `Meta de ${STAGES[tv.stage].name} batida. Todo mundo ganha filme novo: +${FILM_BONUS} fotos.`;
+  tv.travelT = 3.5; setPhase('travel');
 }
 function shoot(pl) {
   const now = performance.now();
@@ -616,7 +679,7 @@ function shoot(pl) {
   pl.cool = now;
   const r = judge(tv.history, pl.key, now);
   const aim = r.aim || { x: pl.aim.x, y: pl.aim.y };
-  pl.score += r.pts; if (r.key === 'perfect') pl.perfect++;
+  pl.score += r.pts; tv.stagePts += r.pts; if (r.key === 'perfect') pl.perfect++;
   pl.film = filmAfter(pl.film, r.key);
   pl.n++; pl.result = { k: r.key };
   tv.rings.push({ x: aim.x, y: aim.y, age: 0 });
@@ -629,7 +692,8 @@ function shoot(pl) {
   // toda foto acertada é recortada da cena (no próximo quadro) e vai para o celular; foto perdida sai em branco
   if (r.key !== 'miss') tv.crops.push({ pl, n: pl.n, d: r.d, label: TIERS.find(t => t.key === r.key).label, sp: r.bird.sp, id: r.bird.id, off: { x: aim.x - r.bird.x, y: aim.y - r.bird.y }, aim });
   else sendTo(pl, { t: 'photo', n: pl.n, img: null, cap: 'fora de foco' });
-  renderScoreboard(); pushHostState();
+  renderScoreboard(); renderStage(); pushHostState();
+  if (tv.stagePts >= stageTarget(tv.stage, onlineCams())) stageClear();
 }
 function sendTo(pl, m) { const c = conns.get(pl.key); if (c && c.open) c.send(m); }
 function micoLaugh() {
@@ -639,21 +703,21 @@ function micoLaugh() {
 
 // ---------- pássaros ----------
 function spawnBird() {
-  const sp = pickSpecies(), left = Math.random() < 0.5;
-  const b = { id: ++birdSeq, sp, x: left ? -90 : W + 90, y: rand(110, H * 0.6), heading: left ? 0 : Math.PI, speed: rand(sp.speed[0], sp.speed[1]), targetSpeed: 0, targetHeading: 0, life: rand(5, 8), age: 0, leaving: false, gone: false, turnIn: 0, phase: Math.random() * 4, rx: 7 * sp.u * PX, ry: 4.4 * sp.u * PX };
+  const st = STAGES[tv.stage], sp = pickSpecies(st.birds), left = Math.random() < 0.5, k = st.speedK; // cada lugar é um pouco mais rápido
+  const b = { id: ++birdSeq, sp, k, x: left ? -90 : W + 90, y: rand(110, H * 0.6), heading: left ? 0 : Math.PI, speed: rand(sp.speed[0], sp.speed[1]) * k, targetSpeed: 0, targetHeading: 0, life: rand(5, 8), age: 0, leaving: false, gone: false, turnIn: 0, phase: Math.random() * 4, rx: 7 * sp.u * PX, ry: 4.4 * sp.u * PX };
   retarget(b); if (tv.phase === 'playing') sfx.chirp(); return b;
 }
 function retarget(b) {
   const tx = rand(160, W - 160), ty = rand(100, H * 0.62);
   b.targetHeading = Math.atan2(ty - b.y, tx - b.x);
-  b.targetSpeed = b.sp.hover && Math.random() < 0.35 ? 12 : rand(b.sp.speed[0], b.sp.speed[1]);
+  b.targetSpeed = b.sp.hover && Math.random() < 0.35 ? 12 : rand(b.sp.speed[0], b.sp.speed[1]) * b.k;
   b.turnIn = rand(0.6, 1.6);
 }
 function updateBird(b, dt) {
   b.age += dt;
   if (!b.leaving) {
     if ((b.turnIn -= dt) <= 0) retarget(b);
-    if (b.age > b.life) { b.leaving = true; b.targetHeading = b.x < W / 2 ? -Math.PI + 0.45 : -0.45; b.targetSpeed = b.sp.speed[1] * 1.35; }
+    if (b.age > b.life) { b.leaving = true; b.targetHeading = b.x < W / 2 ? -Math.PI + 0.45 : -0.45; b.targetSpeed = b.sp.speed[1] * 1.35 * b.k; }
   }
   let diff = b.targetHeading - b.heading;
   diff = Math.atan2(Math.sin(diff), Math.cos(diff));
@@ -682,8 +746,11 @@ function update(dt, now) {
     tv.outT = shooters.length && shooters.every(p => p.film <= 0) ? tv.outT + dt : 0; // todo mundo sem filme: rodada acaba
     if (tv.timeLeft <= 0 || tv.outT > 2) { tv.timeLeft = Math.max(0, tv.timeLeft); setPhase('end'); }
     else if (Math.ceil(tv.timeLeft) !== lastSecond) { renderClock(); pushHostState(); }
+  } else if (tv.phase === 'travel' && (tv.travelT -= dt) <= 0) {
+    for (const pl of tv.players.values()) pl.film += FILM_BONUS; // filme novo para o lugar novo
+    startStage(tv.stage + 1); setPhase('playing'); renderScoreboard();
   }
-  const maxBirds = tv.phase === 'playing' ? Math.min(6, 2 + tv.players.size) : tv.phase === 'countdown' || tv.phase === 'gate' ? 0 : 2;
+  const maxBirds = tv.phase === 'playing' ? Math.min(6, 2 + tv.players.size) : ['countdown', 'gate', 'travel'].includes(tv.phase) ? 0 : 2;
   tv.spawnIn -= dt;
   if (tv.birds.length < maxBirds && tv.spawnIn <= 0) { tv.birds.push(spawnBird()); tv.spawnIn = rand(0.6, 1.6); }
   for (const b of tv.birds) updateBird(b, dt);
@@ -710,34 +777,105 @@ function sizeCanvas() {
   view.s = view.S / PX;
   view.ox = Math.round((canvas.width - LW * view.S) / 2); view.oy = Math.round((canvas.height - LH * view.S) / 2);
 }
-function paintBackdrop() {
+// Pinta a paisagem da fase i em 320×180 com ferramentas de pixel art compartilhadas.
+function paintBackdrop(i) {
   backdrop.width = LW; backdrop.height = LH;
   const g = backdrop.getContext('2d');
-  const dot = (x, y, col) => { g.fillStyle = col; g.fillRect(x, y, 1, 1); };
-  const bands = [[0, '#3a86d8'], [28, '#4f9de6'], [54, '#69b3ef'], [78, '#8cc8f3'], [96, '#b3dcf3'], [108, '#e4e6cc'], [116, '#f6d9a0']];
-  bands.forEach(([y0, col], i) => {
-    const y1 = i + 1 < bands.length ? bands[i + 1][0] : 140;
-    g.fillStyle = col; g.fillRect(0, y0, LW, y1 - y0);
-    if (i) for (let x = 0; x < LW; x++) { if (x % 2 === 0) dot(x, y0, bands[i - 1][1]); if (x % 4 === 1) dot(x, y0 + 1, bands[i - 1][1]); } // pontilhado 8 bits
+  let seed = 11 + i * 7;
+  const rect = (x, y, w, h, col) => { g.fillStyle = col; g.fillRect(x, y, w, h); };
+  const dot = (x, y, col) => rect(x, y, 1, 1, col);
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const sky = bands => bands.forEach(([y0, col], k) => {
+    rect(0, y0, LW, (k + 1 < bands.length ? bands[k + 1][0] : 140) - y0, col);
+    if (k) for (let x = 0; x < LW; x++) { if (x % 2 === 0) dot(x, y0, bands[k - 1][1]); if (x % 4 === 1) dot(x, y0 + 1, bands[k - 1][1]); } // pontilhado 8 bits
   });
-  for (let y = -14; y <= 14; y++) for (let x = -14; x <= 14; x++) { const r = Math.hypot(x, y); if (r <= 10.5) dot(262 + x, 38 + y, '#fff4c2'); else if (r <= 13 && (x + y) % 2 === 0) dot(262 + x, 38 + y, '#ffe28a'); }
+  const blob = (cx, cy, r, col, hi) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r) dot(cx + x, cy + y, hi && x + y < -r * 0.6 ? hi : col); };
+  const sun = (cx, cy, r, core, ring) => { const R = Math.ceil(r + 3); for (let y = -R; y <= R; y++) for (let x = -R; x <= R; x++) { const d = Math.hypot(x, y); if (d <= r) dot(cx + x, cy + y, core); else if (d <= r + 2.5 && (x + y) % 2 === 0) dot(cx + x, cy + y, ring); } }; // passo inteiro: pixel cheio, sem borrar
+  const palm = (base, ground, hgt, trunk, trunk2, leaf, leaf2) => {
+    for (let y = ground - hgt; y < ground; y++) rect(base + Math.round(Math.sin((ground - y) / hgt * 1.2) * 3), y, 2, 1, y % 4 ? trunk : trunk2);
+    const tx = base + Math.round(Math.sin(1.2) * 3) + 1, ty = ground - hgt - 1;
+    for (let k = 0; k < 7; k++) { const a = -Math.PI / 2 + (k - 3) * 0.5; for (let t = 1; t < 15; t++) dot(Math.round(tx + Math.cos(a) * t), Math.round(ty + Math.sin(a) * t + (t * t) / 26), t % 3 ? leaf : leaf2); }
+  };
+  STAGES[i].paint({ rect, dot, rnd, sky, blob, sun, palm });
+}
+function paintMata({ rect, dot, rnd, sky, blob, sun, palm }) {
+  sky([[0, '#3a86d8'], [28, '#4f9de6'], [54, '#69b3ef'], [78, '#8cc8f3'], [96, '#b3dcf3'], [108, '#e4e6cc'], [116, '#f6d9a0']]);
+  sun(262, 38, 10.5, '#fff4c2', '#ffe28a');
   for (let x = 0; x < LW; x++) { // Serra do Mar
     const h1 = 104 + Math.round(8 * Math.sin(x * 0.04 + 0.5) + 4 * Math.sin(x * 0.11 + 2));
-    g.fillStyle = '#7aa7ad'; g.fillRect(x, h1, 1, 60); dot(x, h1, '#a2c6c6');
+    rect(x, h1, 1, 60, '#7aa7ad'); dot(x, h1, '#a2c6c6');
     const h2 = 121 + Math.round(5 * Math.sin(x * 0.06 + 1.2) + 3 * Math.sin(x * 0.17));
-    g.fillStyle = '#55915f'; g.fillRect(x, h2, 1, 60); dot(x, h2, '#70ad72');
+    rect(x, h2, 1, 60, '#55915f'); dot(x, h2, '#70ad72');
   }
-  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
-  const blob = (cx, cy, r, col, hi) => { for (let y = -r; y <= r; y++) for (let x = -r; x <= r; x++) if (x * x + y * y <= r * r) dot(cx + x, cy + y, hi && x + y < -r * 0.6 ? hi : col); };
   for (let x = -4; x < LW + 8; x += 9 + Math.floor(rnd() * 7)) blob(x, 138 - Math.floor(rnd() * 4), 6 + Math.floor(rnd() * 4), '#2f7040', '#3f8a4c');
   for (let x = -4; x < LW + 8; x += 8 + Math.floor(rnd() * 6)) blob(x, 152 - Math.floor(rnd() * 3), 7 + Math.floor(rnd() * 4), '#225a33', '#2f7040');
-  g.fillStyle = '#1b4a2b'; g.fillRect(0, 156, LW, 24);
-  g.fillStyle = '#163d24'; g.fillRect(0, 168, LW, 12);
+  rect(0, 156, LW, 24, '#1b4a2b'); rect(0, 168, LW, 12, '#163d24');
   for (let x = 0; x < LW; x += 2) dot(x + ((x / 2) % 2), 167, '#163d24');
-  for (const base of [28, 246]) { // palmeiras-juçara
-    for (let y = 104; y < 160; y++) { const x = base + Math.round(Math.sin((160 - y) / 56 * 1.2) * 3); g.fillStyle = y % 4 ? '#5b4a32' : '#3f3222'; g.fillRect(x, y, 2, 1); }
-    const tx = base + Math.round(Math.sin(1.2) * 3) + 1;
-    for (let i = 0; i < 7; i++) { const a = -Math.PI / 2 + (i - 3) * 0.5; for (let t = 1; t < 15; t++) dot(Math.round(tx + Math.cos(a) * t), Math.round(103 + Math.sin(a) * t + (t * t) / 26), t % 3 ? '#2c6e3a' : '#45924f'); }
+  for (const base of [28, 246]) palm(base, 160, 56, '#5b4a32', '#3f3222', '#2c6e3a', '#45924f'); // palmeiras-juçara
+}
+function paintRio({ rect, dot, rnd, sky, sun, palm }) {
+  sky([[0, '#33366f'], [22, '#4e4a96'], [44, '#7b55a3'], [64, '#b5639c'], [82, '#e57f73'], [98, '#f4a762'], [110, '#fbcf86']]);
+  sun(24, 120, 12, '#ffe3a3', '#ffbf6b'); // pôr do sol na baía
+  const hill = '#2b2743', statue = '#efeaf6';
+  for (let x = 40; x < 200; x++) { const d = x - 112, y0 = Math.round(64 + (d < 0 ? -d * 1.05 : d * 1.7) + Math.sin(x * 0.7)); if (y0 < 132) rect(x, y0, 1, 132 - y0, hill); } // Corcovado
+  rect(108, 63, 8, 3, hill);
+  rect(111, 47, 2, 2, statue); rect(111, 49, 2, 13, statue); rect(105, 53, 14, 2, statue); rect(110, 57, 4, 5, statue); rect(109, 62, 6, 1, statue); // Cristo Redentor de braços abertos
+  const loaf = (cx, w, hgt) => { for (let x = cx - w; x <= cx + w; x++) { const t = (x - cx) / w, y0 = Math.round(132 - hgt * Math.pow(Math.max(0, 1 - t * t), 0.35)); rect(x, y0, 1, 132 - y0, hill); } };
+  loaf(222, 18, 26); loaf(262, 26, 60); // Morro da Urca e Pão de Açúcar
+  for (let k = 0; k <= 38; k++) dot(224 + k, Math.round(106 - k * 0.84), '#1a1830'); // cabo do bondinho
+  rect(242, 90, 3, 2, '#f2c14e');
+  for (let x = 0; x < LW; x += 4 + Math.floor(rnd() * 4)) { // prédios da orla com janelas acesas
+    if (x > 196 && x < 292) continue;
+    const bh = 4 + Math.floor(rnd() * 12), bw = 3 + Math.floor(rnd() * 4);
+    rect(x, 132 - bh, bw, bh, '#1d1a30');
+    for (let wy = 133 - bh; wy < 131; wy += 2) for (let wx = x + 1; wx < x + bw - 1; wx += 2) if (rnd() < 0.45) dot(wx, wy, '#ffd67a');
+  }
+  rect(0, 132, LW, 28, '#2c4f7c');
+  for (let y = 134; y < 160; y += 3) for (let x = (y * 7) % 11; x < LW; x += 9 + (y % 5)) rect(x, y, 3, 1, '#3f6a9a');
+  for (let y = 133; y < 160; y += 2) rect(16 + Math.floor(rnd() * 10), y, 3 + Math.floor(rnd() * 4), 1, '#f7b267'); // reflexo do sol
+  rect(0, 160, LW, 10, '#e2bd85');
+  for (let y = 170; y < LH; y++) for (let x = 0; x < LW; x++) dot(x, y, Math.floor((y + Math.sin(x * 0.25) * 2.5) / 2.5) % 2 ? '#1a1a1a' : '#f1ede4'); // calçadão de Copacabana
+  palm(26, 170, 48, '#5b4a32', '#3f3222', '#1f5a33', '#2f7d3f'); palm(296, 170, 54, '#5b4a32', '#3f3222', '#1f5a33', '#2f7d3f');
+}
+function paintSertao({ rect, dot, rnd, sky, sun }) {
+  sky([[0, '#3e9ad8'], [30, '#62b0e3'], [58, '#93c8e6'], [84, '#cfe2dc'], [102, '#f3e3b2'], [114, '#f6d18a']]);
+  sun(250, 34, 13, '#fffbe0', '#fff0a8'); // sol a pino
+  const mesa = (x0, x1, top, col, edge) => { for (let x = x0; x <= x1; x++) { const y0 = Math.round(top + Math.max(0, x0 + 10 - x, x - (x1 - 10)) * 1.3); rect(x, y0, 1, 140 - y0, col); dot(x, y0, edge); } };
+  mesa(-10, 150, 98, '#c48a5e', '#dcaa7c'); mesa(170, 340, 108, '#b07850', '#c9926a'); // chapadas no horizonte
+  rect(0, 130, LW, 50, '#d9a05e'); rect(0, 152, LW, 28, '#c98c4c');
+  for (let k = 0; k < 26; k++) { let x = Math.floor(rnd() * LW), y = 134 + Math.floor(rnd() * 44); for (let s = 0; s < 6; s++) { dot(x, y, '#9a5f30'); x += rnd() < 0.5 ? 0 : 2; y += rnd() < 0.6 ? 1 : 0; } } // chão rachado
+  for (const bx of [80, 160, 205, 268]) for (let k = 0; k < 6; k++) { // garranchos secos
+    const ex = bx + Math.floor(rnd() * 14) - 7, ey = 128 + Math.floor(rnd() * 8);
+    for (let t = 0; t <= 10; t++) dot(Math.round(bx + (ex - bx) * t / 10), Math.round(142 + (ey - 142) * t / 10), '#7a6a55');
+  }
+  const cactus = (x, base, hgt) => { // mandacaru
+    const arm1 = base - Math.round(hgt * 0.55), arm2 = base - Math.round(hgt * 0.4), up1 = Math.round(hgt * 0.3), up2 = Math.round(hgt * 0.25);
+    rect(x, base - hgt, 4, hgt, '#3f8a4c'); rect(x + 1, base - hgt, 1, hgt, '#5aa65f'); rect(x + 3, base - hgt, 1, hgt, '#2c6b39'); rect(x + 1, base - hgt - 1, 2, 1, '#3f8a4c');
+    rect(x - 6, arm1, 6, 3, '#3f8a4c'); rect(x - 6, arm1 - up1, 3, up1, '#3f8a4c'); rect(x - 5, arm1 - up1, 1, up1, '#5aa65f');
+    rect(x + 4, arm2, 6, 3, '#3f8a4c'); rect(x + 7, arm2 - up2, 3, up2, '#3f8a4c'); rect(x + 8, arm2 - up2, 1, up2, '#5aa65f');
+  };
+  cactus(34, 172, 60); cactus(232, 166, 48); cactus(292, 176, 66); cactus(128, 160, 22);
+}
+function paintAmazonia({ rect, dot, rnd, sky, blob }) {
+  sky([[0, '#5d9bb3'], [28, '#7cb0c2'], [56, '#a0c6cf'], [84, '#c4dcd6'], [104, '#dfe9de']]);
+  for (let x = -4; x < LW + 8; x += 7 + Math.floor(rnd() * 5)) blob(x, 114 - Math.floor(rnd() * 4), 5 + Math.floor(rnd() * 3), '#5f8f6c'); // floresta ao longe
+  for (let y = 100; y < 108; y++) for (let x = y % 2; x < LW; x += 2) if (rnd() < 0.5) dot(x, y, '#eef3ec'); // neblina
+  for (let x = -4; x < LW + 8; x += 6 + Math.floor(rnd() * 5)) blob(x, 122 - Math.floor(rnd() * 3), 6 + Math.floor(rnd() * 3), '#2f6b40', '#3f8a4c');
+  const samauma = (x, top) => { // árvore gigante acima da copa
+    rect(x - 1, top, 3, 126 - top, '#6e5a44'); rect(x - 4, 120, 2, 6, '#6e5a44'); rect(x + 3, 120, 2, 6, '#6e5a44');
+    for (let y = -8; y <= 6; y++) for (let dx = -28; dx <= 28; dx++) if ((dx / 28) ** 2 + (y / 8) ** 2 <= 1) dot(x + dx, top + y, y < -3 && dx < 0 ? '#46924f' : '#2e6b3a');
+  };
+  samauma(70, 70); samauma(248, 64);
+  for (let x = 0; x < LW; x++) for (let y = 126; y < 152; y++) dot(x, y, (x - 150) / 30 + Math.sin(y * 0.9 + x * 0.2) * 0.4 < 0 ? '#2a2620' : '#a07c4a'); // encontro das águas: Rio Negro e Solimões
+  for (let y = 128; y < 150; y += 3) for (let x = (y * 5) % 13; x < LW; x += 14) rect(x, y, 4, 1, 'rgba(255,255,255,.18)');
+  rect(112, 137, 14, 2, '#5b3a22'); rect(114, 136, 10, 1, '#7a5030'); rect(119, 132, 1, 4, '#222222'); dot(119, 131, '#d9a77a'); rect(121, 133, 1, 5, '#7a5030'); // canoa
+  rect(0, 150, LW, 30, '#174a28');
+  for (let k = 0; k < 70; k++) blob(Math.floor(rnd() * LW), 154 + Math.floor(rnd() * 26), 3 + Math.floor(rnd() * 4), ['#1d5a2e', '#2f7d3f', '#3f9a4c'][k % 3]);
+  for (let k = 0; k < 14; k++) { const x = Math.floor(rnd() * LW), y = 152 + Math.floor(rnd() * 20); rect(x, y, 2, 3, '#e23c3c'); dot(x, y - 1, '#f5c518'); } // helicônias
+  for (const vx of [6, 13, 307, 314]) { // cipós
+    const len = 24 + Math.floor(rnd() * 34);
+    for (let y = 0; y < len; y++) dot(vx + Math.round(Math.sin(y * 0.3)), y, '#2e6b3a');
+    for (let y = 4; y < len; y += 5) dot(vx + 1 + Math.round(Math.sin(y * 0.3)), y, '#46924f');
   }
 }
 function pxBrackets(c, x, y, hw, hh, len, color) {
@@ -768,8 +906,10 @@ function hiText(text, lx, ly, size, color) {
 function render(now) {
   const c = lc;
   c.drawImage(backdrop, 0, 0);
+  c.globalAlpha = STAGES[tv.stage].clouds; // céu do sertão quase sem nuvem, Amazônia carregada
   CLOUD_SPR.forEach((cl, i) => c.drawImage(cl, Math.round(((i * 170 + now / 1000 * (4 + i * 2)) % (LW + 60)) - 50), 14 + i * 22));
   CLOUD_SPR.forEach((cl, i) => c.drawImage(cl, Math.round(((i * 170 + 90 + now / 1000 * (3 + i)) % (LW + 60)) - 50), 46 + i * 10));
+  c.globalAlpha = 1;
   for (const b of tv.birds) {
     const spr = BIRD_SPR.get(b.sp)[FLAP[Math.floor((now / 1000 * b.sp.flap * 4 + b.phase)) % 4]];
     drawSprite(c, spr, Math.round(b.x / PX), Math.round(b.y / PX), Math.cos(b.heading) < 0);
@@ -800,7 +940,7 @@ function render(now) {
     for (let a = 0; a < Math.PI * 2; a += 1 / rad) c.fillRect(Math.round(cx + Math.cos(a) * rad), Math.round(cy + Math.sin(a) * rad), 1, 1);
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.fillStyle = '#163d24'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = STAGES[tv.stage].ground; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = false;
   ctx.drawImage(lo, view.ox, view.oy, LW * view.S, LH * view.S);
   ctx.textAlign = 'center'; ctx.lineJoin = 'round';
@@ -851,10 +991,13 @@ function renderRoster() {
   if (!list.length) { const li = document.createElement('li'); li.className = 'empty'; li.textContent = 'Nenhuma câmera conectada ainda'; ul.append(li); }
   $('startBtn').disabled = !list.some(p => p.online);
   if (tv.phase !== 'gate' || peer) renderNet();
+  renderStage(); // a meta da fase depende de quantas câmeras estão jogando
 }
 function renderResults() {
   const ranked = rankPlayers(tv.players.values());
   $('winner').textContent = !ranked.length || ranked[0].score === 0 ? 'Ninguém conseguiu foto. O Mico venceu.' : `${ranked[0].name} fez o melhor álbum!`;
+  $('journey').textContent = tv.won ? `Volta ao Brasil completa: ${STAGES.map(s => s.name).join(' → ')}!`
+    : `A viagem parou em ${STAGES[tv.stage].name} (lugar ${tv.stage + 1} de ${STAGES.length}). Faltaram ${Math.max(0, stageTarget(tv.stage, onlineCams()) - tv.stagePts)} pontos para a meta.`;
   if (!ranked.length || ranked[0].score === 0) micoLaugh();
   const ol = $('ranking'); ol.replaceChildren();
   ranked.forEach((pl, i) => {
@@ -880,7 +1023,7 @@ function renderResults() {
 // =====================================================================
 // CÂMERA (celular)
 // =====================================================================
-const cam = { joined: false, shown: 0, film: FILM_START, x: 0.5, y: 0.5, mode: 'touch', sens: 1, invX: false, invY: false, cool: 0, aimQueued: false, code: '', name: '' };
+const cam = { joined: false, shown: 0, film: FILM_START, lastPhase: '', x: 0.5, y: 0.5, mode: 'touch', sens: 1, invX: false, invY: false, cool: 0, aimQueued: false, code: '', name: '' };
 let msgTimer = 0, conn = null, retryTimer = 0, openTimer = 0;
 
 function startCam() {
@@ -945,8 +1088,10 @@ function send(m) { if (conn && conn.open) conn.send(m); }
 function setClock(text, rec) { $('vfClock').textContent = text; $('vfClock').classList.toggle('rec', rec); }
 function onState(d) {
   if (!d || typeof d !== 'object') return;
-  const playing = d.phase === 'playing', left = clamp(num(d.left), 0, 999);
-  setClock(playing ? `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : d.phase === 'countdown' ? 'Prepare-se' : d.phase === 'end' ? 'Fim da rodada' : d.phase === 'gate' ? 'Prepare a TV' : 'Aguardando', playing);
+  const playing = d.phase === 'playing', left = clamp(num(d.left), 0, 999), st = clamp(num(d.st), 0, STAGES.length - 1);
+  setClock(playing ? `${STAGES[st].short} ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : d.phase === 'travel' ? 'Viajando…' : d.phase === 'countdown' ? 'Prepare-se' : d.phase === 'end' ? 'Fim da viagem' : d.phase === 'gate' ? 'Prepare a TV' : 'Aguardando', playing);
+  if (d.phase === 'travel' && cam.lastPhase !== 'travel' && STAGES[st + 1]) showMsg(`PRÓXIMA PARADA:\n${STAGES[st + 1].name.toUpperCase()}\n+${FILM_BONUS} FOTOS`, 'perfect');
+  cam.lastPhase = d.phase;
   $('camStart').hidden = !(d.phase === 'lobby' || d.phase === 'end');
   $('meChip').style.setProperty('--c', COLORS[num(d.c) % COLORS.length]);
   $('vfScore').textContent = String(num(d.s)).padStart(4, '0');
