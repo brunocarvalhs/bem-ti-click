@@ -1,11 +1,11 @@
 // Desenho da TV: cena em 320×180, ampliada para a tela sem suavização, com textos nítidos por cima.
-import { W, H } from '../config.js';
-import { LW, LH, PX, FLAP, drawSprite, pxBrackets } from '../art/pixel.js';
-import { SPECIES, BIRD_SPR } from '../art/birds.js';
-import { MICO_SPR } from '../art/mico.js';
-import { STAGES, CLOUD_SPR, paintBackdrop } from '../art/stages.js';
-import { $, clamp } from '../shared/util.js';
-import { rarityOf } from '../core/rules.js';
+import { W, H } from '../../config.js';
+import { LW, LH, PX, FLAP, drawSprite, pxBrackets } from '../../art/pixel.js';
+import { SPECIES, BIRD_SPR } from '../../art/birds.js';
+import { MICO_SPR } from '../../art/mico.js';
+import { STAGES, CLOUD_SPR, paintBackdrop } from '../../art/stages.js';
+import { clamp } from '../../shared/util.js';
+import { rarityOf } from '../../core/rules.js';
 import { tv, mico, view, gfx } from './state.js';
 import { sendTo } from './room.js';
 
@@ -112,9 +112,9 @@ export function render(now) {
   if (tv.flash > 0) { ctx.fillStyle = `rgba(255,255,255,${tv.flash})`; ctx.fillRect(0, 0, canvas.width, canvas.height); }
 }
 
-// Letreiro animado da tela de abertura.
-export function marquee() {
-  const g = $('marquee').getContext('2d'), spr = BIRD_SPR.get(SPECIES[0]);
+// Letreiro animado da tela de abertura (para sozinho quando a TV sai da abertura).
+export function marquee(canvas) {
+  const g = canvas.getContext('2d'), spr = BIRD_SPR.get(SPECIES[0]);
   const tick = now => {
     if (tv.phase !== 'gate') return;
     g.fillStyle = '#4f9de6'; g.fillRect(0, 0, 128, 32);

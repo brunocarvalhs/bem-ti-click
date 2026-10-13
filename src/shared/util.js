@@ -1,6 +1,5 @@
 // Ajudantes do navegador usados pela TV e pela câmera.
 import { PORTFOLIO_URL } from '../config.js';
-export const $ = id => document.getElementById(id);
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const num = v => (Number.isFinite(v) ? v : 0);
 export const rand = (a, b) => a + Math.random() * (b - a);
@@ -18,6 +17,3 @@ export function wakeLock() { try { navigator.wakeLock && navigator.wakeLock.requ
 export const portfolioUrl = () => PORTFOLIO_URL || new URL('/', location.href).href;
 
 export function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
-
-// Reinicia uma animação CSS (remove a classe, força layout, coloca de novo).
-export function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); }

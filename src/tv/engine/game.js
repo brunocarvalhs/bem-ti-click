@@ -1,43 +1,41 @@
-// TV (host): manda no jogo. Simula os pássaros, julga as fotos e conduz as fases.
-import { W, H, ROUND, COUNTDOWN, MAX_CAMS, COLORS } from '../config.js';
-import { $, clamp, num, rand, store, wakeLock, reduceMotion, portfolioUrl } from '../shared/util.js';
-import { sfx, unlockAudio } from '../shared/audio.js';
-import { TIERS, LEVELS, shotLabel, rarityOf, rarityTag, judge, filmAfter, startFilm, stageTarget, rankPlayers, levelOf, hardFilm, selfCheck } from '../core/rules.js';
-import { STAGES } from '../art/stages.js';
-import { SPECIES, BIRD_SPR } from '../art/birds.js';
-import { tv, mico, gfx, onlineCams } from './state.js';
-import { net, openRoom, sendTo, sendEach } from './room.js';
+// Motor da TV (host): manda no jogo. Simula os pássaros, julga as fotos e conduz as fases.
+// Não toca no DOM além do canvas: muda `tv` e chama emit(); a interface React desenha o resto.
+import QRCode from 'qrcode';
+import { W, H, ROUND, COUNTDOWN, MAX_CAMS, COLORS } from '../../config.js';
+import { clamp, num, rand, store, wakeLock, reduceMotion } from '../../shared/util.js';
+import { sfx, unlockAudio } from '../../shared/audio.js';
+import { track, events } from '../../shared/analytics.js';
+import { TIERS, LEVELS, shotLabel, rarityOf, rarityTag, judge, filmAfter, startFilm, stageTarget, rankPlayers, levelOf, hardFilm, selfCheck } from '../../core/rules.js';
+import { STAGES } from '../../art/stages.js';
+import { SPECIES, BIRD_SPR } from '../../art/birds.js';
+import { tv, mico, gfx, emit, onlineCams } from './state.js';
+import { openRoom, sendTo, sendEach } from './room.js';
 import { spawnBird, updateBird } from './flight.js';
-import { initScene, showStage, render, marquee, toWorld } from './render.js';
-import * as hud from './hud.js';
+import { initScene, showStage, render, toWorld } from './render.js';
 import { addScores, topScores } from './ranking.js';
 
-let lastFrame = 0;
+let lastFrame = 0, started = false;
+const place = () => STAGES[tv.stage].short;
 
-export function startTv(params) {
-  $('tv').hidden = false;
-  $('siteLink').href = portfolioUrl();
-  initScene($('scene'));
-  hud.renderRoster(); hud.renderLevel(); marquee();
-  wireControls();
+export function startEngine(canvas, params) {
+  if (started) return; // o React pode montar duas vezes em desenvolvimento
+  started = true;
+  initScene(canvas);
   requestAnimationFrame(loop);
   if (params.has('teste')) {
-    $('gateText').textContent = 'Teste das regras de pontuação: ' + selfCheck();
-    window.oop = { tv, gfx, hud, setPhase, startStage, stageClear, setLevel, showStage, STAGES, SPECIES, BIRD_SPR }; // alça para os testes automáticos
+    tv.selfCheck = selfCheck();
+    window.oop = { tv, gfx, events, setPhase, startStage, stageClear, setLevel, setStart, pause, resume, exitTrip, showStage, STAGES, SPECIES, BIRD_SPR }; // alça para os testes automáticos
   }
   openRoom({ open: showRoom, join, data, leave, change });
 }
 
 // ---------- sala e câmeras ----------
 function showRoom(code) {
-  const url = location.origin + location.pathname + '?sala=' + code;
-  $('codeBig').textContent = $('codeSmall').textContent = code;
-  $('joinUrl').textContent = url;
-  for (const [id, size] of [['qrBig', 212], ['qrSmall', 108]]) {
-    const el = $(id); el.replaceChildren(); el.hidden = false;
-    if (window.QRCode) new window.QRCode(el, { text: url, width: size, height: size, colorDark: '#000000', colorLight: '#ffffff', correctLevel: window.QRCode.CorrectLevel.M });
-    else el.textContent = `Sala ${code}`;
-  }
+  tv.joinUrl = location.origin + location.pathname + '?sala=' + code;
+  QRCode.toDataURL(tv.joinUrl, { width: 424, margin: 1, errorCorrectionLevel: 'M' })
+    .then(img => { tv.qr = img; emit(); })
+    .catch(() => {}); // sem QR, o lobby mostra o endereço e o código
+  track('room_open');
 }
 
 function join(token, name) {
@@ -45,6 +43,7 @@ function join(token, name) {
   if (!pl) {
     if ([...tv.players.values()].filter(p => !p.local).length >= MAX_CAMS) return `Sala cheia: no máximo ${MAX_CAMS} câmeras.`;
     pl = newPlayer(token, name, false); tv.players.set(token, pl);
+    track('camera_joined', { cams: [...tv.players.values()].filter(p => !p.local).length });
   }
   pl.online = true; pl.name = name || pl.name;
   return null;
@@ -54,15 +53,18 @@ function data(token, m) {
   const pl = tv.players.get(token); if (!pl) return;
   if (m.t === 'aim') { pl.target.x = clamp(num(m.x), 0, 1) * W; pl.target.y = clamp(num(m.y), 0, 1) * H; }
   else if (m.t === 'shot') shoot(pl);
-  else if (m.t === 'start' && (tv.phase === 'lobby' || tv.phase === 'end')) setPhase('countdown');
+  else if (m.t === 'start' && (tv.phase === 'lobby' || tv.phase === 'end')) startGame('camera');
+  else if (m.t === 'pause') pause('camera');
+  else if (m.t === 'resume') resume();
+  else if (m.t === 'exit') exitTrip();
 }
 
 function leave(token) {
   const pl = tv.players.get(token); if (!pl) return;
-  pl.online = false; hud.renderRoster(); hud.renderScoreboard();
+  pl.online = false; emit();
 }
 
-function change() { hud.renderRoster(); hud.renderScoreboard(); pushHostState(); }
+function change() { emit(); pushHostState(); }
 
 function newPlayer(key, name, local) {
   const used = new Set([...tv.players.values()].map(p => p.ci));
@@ -81,62 +83,90 @@ function pushHostState() {
 }
 
 // ---------- fases ----------
-function setPhase(ph) {
+export function setPhase(ph) {
   tv.phase = ph;
-  for (const [id, on] of [['gate', 'gate'], ['lobby', 'lobby'], ['countdown', 'countdown'], ['travel', 'travel'], ['results', 'end']]) $(id).hidden = ph !== on;
-  const live = ph === 'countdown' || ph === 'playing' || ph === 'travel';
-  $('qrCorner').hidden = !live || !net.code;
-  $('clock').hidden = !live || ph === 'travel';
-  $('scoreboard').hidden = $('stageInfo').hidden = !live;
-  if (ph === 'lobby') hud.renderLevel();
   if (ph === 'countdown') {
-    tv.countdown = COUNTDOWN; tv.won = false;
+    tv.countdown = COUNTDOWN; tv.won = false; tv.album = new Set(); tv.board = null;
     for (const pl of tv.players.values()) Object.assign(pl, { score: 0, perfect: 0, best: null, result: null });
     refillFilm();
-    startStage(0);
-    $('countdown').textContent = COUNTDOWN; sfx.beep(false); hud.renderScoreboard();
+    startStage(tv.start);
+    sfx.beep(false);
+    track('game_start', { level: tv.level, start_place: place(), cams: onlineCams(), hard_film: tv.level === 'dificil' ? tv.hard : undefined });
   }
   if (ph === 'end') {
-    sfx.jingle(); hud.renderResults();
-    if (![...tv.players.values()].some(p => p.score > 0)) micoLaugh();
+    sfx.jingle();
+    const ranked = rankPlayers(tv.players.values());
+    if (!ranked.some(p => p.score > 0)) micoLaugh();
     saveRanking();
+    track('game_end', { level: tv.level, won: tv.won, start_place: STAGES[tv.start].short, last_place: place(), best_score: ranked[0] ? ranked[0].score : 0, cams: onlineCams(), species: tv.album.size });
   }
-  hud.renderClock(); pushHostState();
+  emit(); pushHostState();
 }
 
 // Chega num lugar novo: paisagem, pássaros, meta e cronômetro da fase.
-function startStage(i) {
+export function startStage(i) {
   tv.stage = i; tv.stagePts = 0; tv.timeLeft = ROUND; tv.outT = 0;
   tv.birds = []; tv.texts = []; tv.locks = []; tv.history = []; tv.spawnIn = 0.4;
-  showStage(i); hud.renderStage();
+  showStage(i); emit();
 }
 
-function travelNote() {
-  const here = STAGES[tv.stage].name, bonus = LEVELS[tv.level].bonus;
-  if (tv.level === 'facil') return `Meta de ${here} batida. Filme ilimitado: pode clicar à vontade.`;
-  return bonus ? `Meta de ${here} batida. Todo mundo ganha filme novo: +${bonus} fotos.` : `Meta de ${here} batida. No Difícil não tem filme novo: cuide das fotos que restam.`;
-}
-
-function stageClear() { // meta batida: viaja para o próximo lugar (ou termina a volta ao mundo)
+export function stageClear() { // meta batida: viaja para o próximo lugar (ou termina a viagem)
+  track('stage_clear', { place: place(), stage_number: tv.stage + 1, level: tv.level });
   if (tv.stage === STAGES.length - 1) { tv.won = true; return setPhase('end'); }
-  $('travelTo').textContent = `Próxima parada: ${STAGES[tv.stage + 1].name}`;
-  $('travelNote').textContent = travelNote();
   tv.travelT = 3.5; setPhase('travel');
+}
+
+export function startGame(from = 'tv') {
+  unlockAudio();
+  if (tv.phase === 'end') track('play_again', { from });
+  setPhase('countdown');
+}
+
+export function arm() {
+  unlockAudio(); wakeLock();
+  try { const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); p && p.catch(() => {}); } catch (e) {}
+  track('tv_ready');
+  setPhase('lobby');
 }
 
 // O filme de cada câmera acompanha o nível escolhido, para o celular já mostrar a contagem certa no lobby.
 function refillFilm() { for (const pl of tv.players.values()) pl.film = startFilm(tv.level, tv.hard); }
 
-function setLevel(lv) {
+export function setLevel(lv) {
   tv.level = levelOf(lv); store.set('oop-level', tv.level);
-  refillFilm(); hud.renderLevel(); pushHostState();
+  refillFilm(); emit(); pushHostState();
+  track('level_select', { level: tv.level });
+}
+
+export function setHard(n) {
+  tv.hard = hardFilm(n); store.set('oop-hard', tv.hard);
+  refillFilm(); emit(); pushHostState();
+}
+
+export function setStart(i) {
+  if (!STAGES[i]) return;
+  tv.start = i; store.set('oop-start', i); emit();
+  track('destination_select', { place: STAGES[i].short, country: STAGES[i].country });
+}
+
+// Pausa: congela tempo e pássaros. Sair volta ao lobby sem salvar no ranking.
+export function pause(from = 'tv') {
+  if (tv.phase !== 'playing') return;
+  setPhase('paused'); track('game_pause', { place: place(), from });
+}
+export function resume() { if (tv.phase === 'paused') setPhase('playing'); }
+export function exitTrip() {
+  if (tv.phase !== 'paused') return;
+  track('game_exit', { place: place(), level: tv.level });
+  tv.birds = []; tv.texts = []; tv.locks = [];
+  setPhase('lobby');
 }
 
 async function saveRanking() {
   const mine = [...tv.players.values()].filter(p => p.score > 0).map(p => ({ name: p.name, score: p.score, stage: tv.stage + 1, level: tv.level }));
-  hud.renderBoard(null);
+  tv.board = { loading: true }; emit();
   await addScores(mine);
-  hud.renderBoard(await topScores(tv.level), mine);
+  tv.board = { ...(await topScores(tv.level)), mine }; emit();
 }
 
 // ---------- disparo ----------
@@ -147,10 +177,11 @@ function shoot(pl) {
   const r = judge(tv.history, pl.key, now);
   const aim = r.aim || { x: pl.aim.x, y: pl.aim.y };
   const bonus = LEVELS[tv.level].bonus;
+  const rar = r.bird ? r.bird.rarity : '';
   pl.score += r.pts; tv.stagePts += r.pts; if (r.key === 'perfect') pl.perfect++;
   pl.film = filmAfter(pl.film, r.key, tv.level);
-  const rar = r.bird ? r.bird.rarity : '';
   pl.n++; pl.result = { k: r.key, p: r.pts, r: rar };
+  if (r.bird) tv.album.add(r.bird.sp);
   tv.rings.push({ x: aim.x, y: aim.y, age: 0 });
   if (now - tv.lastFlash > 340) { tv.lastFlash = now; tv.flash = reduceMotion ? 0.15 : 0.5; } // clarão de tela no máximo 3x/s (fotossensibilidade)
   sfx.shutter();
@@ -164,7 +195,8 @@ function shoot(pl) {
   // toda foto acertada é recortada da cena (no próximo quadro) e vai para o celular; foto perdida sai em branco
   if (r.key !== 'miss') tv.crops.push({ pl, n: pl.n, d: r.d, label: TIERS.find(t => t.key === r.key).label, sp: r.bird.sp, rar, id: r.bird.id, off: { x: aim.x - r.bird.x, y: aim.y - r.bird.y }, aim });
   else sendTo(pl.key, { t: 'photo', n: pl.n, img: null, cap: 'fora de foco' });
-  hud.renderScoreboard(); hud.renderStage(); pushHostState();
+  track('photo_taken', { result: r.key, rarity: rar || undefined, species: r.bird ? r.bird.sp : undefined, place: place(), points: r.pts });
+  emit(); pushHostState();
   if (tv.stagePts >= stageTarget(tv.stage, onlineCams())) stageClear();
 }
 
@@ -172,6 +204,15 @@ function micoLaugh() {
   if (mico.mode === 'hidden' || mico.mode === 'up') { mico.mode = 'down'; mico.t = 0; sfx.laugh(); }
   else if (mico.mode === 'laugh') mico.t = Math.min(mico.t, 0.5);
 }
+
+// ---------- mouse (jogar na própria TV) ----------
+export function toggleMouse() {
+  if (tv.players.has('mouse')) tv.players.delete('mouse');
+  else tv.players.set('mouse', newPlayer('mouse', 'Mouse', true));
+  emit();
+}
+export function mouseMove(clientX, clientY) { const pl = tv.players.get('mouse'); if (pl) Object.assign(pl.target, toWorld(clientX, clientY)); }
+export function mouseDown() { const pl = tv.players.get('mouse'); if (pl) shoot(pl); }
 
 // ---------- loop ----------
 function loop(now) {
@@ -182,19 +223,20 @@ function loop(now) {
 
 function update(dt, now) {
   for (const pl of tv.players.values()) { const k = pl.local ? 1 : Math.min(1, dt * 22); pl.aim.x += (pl.target.x - pl.aim.x) * k; pl.aim.y += (pl.target.y - pl.aim.y) * k; }
+  if (tv.phase === 'paused') return; // tudo congelado, só a mira se mexe
   if (tv.phase === 'countdown') {
     const before = Math.ceil(tv.countdown); tv.countdown -= dt; const after = Math.ceil(tv.countdown);
-    if (after !== before && after > 0) { sfx.beep(false); $('countdown').textContent = after; }
+    if (after !== before && after > 0) { sfx.beep(false); emit(); }
     if (tv.countdown <= 0) { sfx.beep(true); setPhase('playing'); }
   } else if (tv.phase === 'playing') {
     tv.timeLeft -= dt;
     const shooters = [...tv.players.values()].filter(p => p.online);
-    tv.outT = shooters.length && shooters.every(p => p.film <= 0) ? tv.outT + dt : 0; // todo mundo sem filme: rodada acaba
+    tv.outT = shooters.length && shooters.every(p => p.film <= 0) ? tv.outT + dt : 0; // todo mundo sem filme: a viagem acaba
     if (tv.timeLeft <= 0 || tv.outT > 2) { tv.timeLeft = Math.max(0, tv.timeLeft); setPhase('end'); }
-    else if (Math.ceil(tv.timeLeft) !== tv.lastSecond) { hud.renderClock(); pushHostState(); }
+    else if (Math.ceil(tv.timeLeft) !== tv.lastSecond) { tv.lastSecond = Math.ceil(tv.timeLeft); emit(); pushHostState(); }
   } else if (tv.phase === 'travel' && (tv.travelT -= dt) <= 0) {
     for (const pl of tv.players.values()) pl.film += LEVELS[tv.level].bonus; // filme novo para o lugar novo (só no Normal)
-    startStage(tv.stage + 1); setPhase('playing'); hud.renderScoreboard();
+    startStage(tv.stage + 1); setPhase('playing');
   }
   const maxBirds = tv.phase === 'playing' ? Math.min(6, 2 + tv.players.size) : ['countdown', 'gate', 'travel'].includes(tv.phase) ? 0 : 2;
   tv.spawnIn -= dt;
@@ -214,31 +256,4 @@ function update(dt, now) {
   tv.flash = Math.max(0, tv.flash - dt * 3.2);
   for (const list of [tv.texts, tv.locks, tv.rings]) for (const f of list) f.age += dt;
   tv.texts = tv.texts.filter(f => f.age < 1.2); tv.locks = tv.locks.filter(f => f.age < 0.7); tv.rings = tv.rings.filter(f => f.age < 0.35);
-}
-
-// ---------- botões e mouse ----------
-function wireControls() {
-  $('armTv').onclick = () => {
-    unlockAudio(); wakeLock();
-    try { const p = document.documentElement.requestFullscreen && document.documentElement.requestFullscreen(); p && p.catch(() => {}); } catch (e) {}
-    setPhase('lobby');
-  };
-  $('startBtn').onclick = $('againBtn').onclick = () => { unlockAudio(); setPhase('countdown'); };
-  $('levelBtn').onclick = () => setPhase('lobby');
-  for (const b of document.querySelectorAll('#levels [data-lv]')) b.onclick = () => setLevel(b.dataset.lv);
-  $('hardIn').oninput = () => { // enquanto digita, só atualiza o texto; ao sair do campo, normaliza o número
-    tv.hard = hardFilm($('hardIn').value); store.set('oop-hard', tv.hard);
-    $('levelNote').textContent = hud.levelNote(tv.level, tv.hard);
-    refillFilm(); pushHostState();
-  };
-  $('hardIn').onchange = hud.renderLevel;
-  $('mouseBtn').onclick = () => {
-    if (tv.players.has('mouse')) tv.players.delete('mouse');
-    else tv.players.set('mouse', newPlayer('mouse', 'Mouse', true));
-    $('mouseBtn').textContent = tv.players.has('mouse') ? 'Tirar o mouse' : 'Jogar com o mouse';
-    $('tv').classList.toggle('aim', tv.players.has('mouse'));
-    hud.renderRoster(); hud.renderScoreboard();
-  };
-  $('scene').addEventListener('pointermove', e => { const pl = tv.players.get('mouse'); if (pl) Object.assign(pl.target, toWorld(e.clientX, e.clientY)); });
-  $('scene').addEventListener('pointerdown', () => { const pl = tv.players.get('mouse'); if (pl) shoot(pl); });
 }

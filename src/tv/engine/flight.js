@@ -1,9 +1,9 @@
 // Voo dos pássaros: entram por um lado, passeiam mudando de rumo e vão embora depois de 5 a 8 s.
-import { W, H } from '../config.js';
-import { PX } from '../art/pixel.js';
-import { pickSpecies } from '../art/birds.js';
-import { STAGES } from '../art/stages.js';
-import { rand, clamp } from '../shared/util.js';
+import { W, H } from '../../config.js';
+import { PX } from '../../art/pixel.js';
+import { pickSpecies } from '../../art/birds.js';
+import { STAGES } from '../../art/stages.js';
+import { rand, clamp } from '../../shared/util.js';
 
 let birdSeq = 0;
 

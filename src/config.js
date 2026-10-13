@@ -1,4 +1,6 @@
 // Ajustes do jogo. Dá para mudar tudo aqui sem mexer no resto do código.
+// Valores marcados com VITE_ também podem vir de variáveis no build (ex.: variáveis do repositório no GitHub Actions).
+const env = (key, fallback) => (import.meta.env && import.meta.env[key]) || fallback;
 
 // Mundo lógico da TV (a cena é desenhada em 320×180 e ampliada).
 export const W = 1600, H = 900;
@@ -19,10 +21,12 @@ export const MAX_CAMS = 6;
 export const PEER_PREFIX = 'olhaopassarinho-v1-';
 export const COLORS = ['#ffcc33', '#4cc9f0', '#ff6b9a', '#7bd389', '#ff8b3d', '#c4a8ff'];
 
-// Tela final.
-// Vazio = raiz do domínio onde o jogo está publicado (ex.: https://brunocarvalhs.github.io/).
-export const PORTFOLIO_URL = '';
+// Tela final. Vazio = raiz do domínio onde o jogo está publicado (ex.: https://brunocarvalhs.github.io/).
+export const PORTFOLIO_URL = env('VITE_PORTFOLIO_URL', '');
 
 // Ranking público (Supabase). Vazio = ranking guardado só neste navegador. Passo a passo no README.
-export const RANK_URL = '';
-export const RANK_KEY = '';
+export const RANK_URL = env('VITE_RANK_URL', '');
+export const RANK_KEY = env('VITE_RANK_KEY', '');
+
+// Google Analytics 4 (ID no formato G-XXXXXXXXXX). Vazio = sem analytics.
+export const GA_ID = env('VITE_GA_ID', '');
