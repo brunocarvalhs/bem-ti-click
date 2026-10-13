@@ -181,3 +181,7 @@ O celular só entra pelo site publicado (ou pelo IP do computador na mesma rede,
 - **Rede**: na mesma Wi‑Fi a conexão abre mais rápido. Em redes muito fechadas (algumas corporativas ou 4G), a conexão direta pode não abrir.
 - **TV**: ligue o Modo Jogo da TV para diminuir o atraso da imagem.
 - **LGPD**: o GA4 usa cookies. Se o site tiver público grande, vale colocar um aviso de cookies com consentimento.
+
+## Licença
+
+Copyright (c) Bruno Carvalho. Todos os direitos reservados. O código é público apenas para consulta; não é permitido copiar, modificar ou redistribuir sem autorização. Veja [LICENSE](LICENSE).

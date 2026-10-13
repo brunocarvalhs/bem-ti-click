@@ -1,6 +1,7 @@
 {
   "name": "bem-ti-click",
   "private": true,
+  "license": "UNLICENSED",
   "version": "2.0.0",
   "description": "Jogo de fotografar pássaros para duas telas: a TV mostra os pássaros e o celular vira a câmera.",
   "type": "module",
