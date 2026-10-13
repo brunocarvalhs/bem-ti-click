@@ -1,7 +1,7 @@
 // Ranking: público no Supabase quando config.js tem RANK_URL e RANK_KEY; senão, guardado só neste navegador.
 // Os nomes vêm de qualquer pessoa: a tela sempre usa textContent, nunca HTML.
-import { RANK_URL, RANK_KEY } from '../config.js';
-import { store } from '../shared/util.js';
+import { RANK_URL, RANK_KEY } from '../../config.js';
+import { store } from '../../shared/util.js';
 
 const LOCAL = 'oop-rank';
 const online = Boolean(RANK_URL && RANK_KEY);

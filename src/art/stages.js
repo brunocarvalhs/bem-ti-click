@@ -2,15 +2,28 @@
 import { LW, LH, paintGrid } from './pixel.js';
 
 export const STAGES = [
-  { name: 'Mata Atlântica', short: 'MATA', birds: ['Bem-te-vi', 'Sabiá-laranjeira', 'Tucano-toco', 'Beija-flor', 'Gavião-carijó'], speedK: 1, clouds: 0.9, ground: '#163d24', paint: paintMata },
-  { name: 'Rio de Janeiro', short: 'RIO', birds: ['Sabiá-laranjeira', 'Bem-te-vi', 'Beija-flor', 'Tesourão'], speedK: 1.07, clouds: 0.5, ground: '#171717', paint: paintRio },
-  { name: 'Sertão nordestino', short: 'SERTÃO', birds: ['Asa-branca', 'Carcará', 'Galo-de-campina', 'Beija-flor'], speedK: 1.14, clouds: 0.3, ground: '#8f5a2e', paint: paintSertao },
-  { name: 'Amazônia', short: 'AMAZÔNIA', birds: ['Arara-vermelha', 'Arara-azul', 'Tucano-toco', 'Gavião-real'], speedK: 1.21, clouds: 0.95, ground: '#123a20', paint: paintAmazonia },
-  { name: 'Andes, Peru', short: 'PERU', birds: ['Tico-tico', 'Beija-flor-gigante', 'Galo-da-serra', 'Condor-andino'], speedK: 1.27, clouds: 0.8, ground: '#3f7038', paint: paintPeru },
-  { name: 'Savana, Quênia', short: 'QUÊNIA', birds: ['Estorninho-soberbo', 'Flamingo', 'Rolieiro-de-peito-lilás', 'Águia-pesqueira'], speedK: 1.33, clouds: 0.35, ground: '#b88f48', paint: paintQuenia },
-  { name: 'Monte Fuji, Japão', short: 'JAPÃO', birds: ['Mejiro', 'Martim-pescador', 'Faisão-verde', 'Grou-japonês'], speedK: 1.39, clouds: 0.7, ground: '#4c7741', paint: paintJapao },
-  { name: 'Outback, Austrália', short: 'AUSTRÁLIA', birds: ['Periquito-australiano', 'Cacatua-de-crista-amarela', 'Cucaburra', 'Cacatua-negra'], speedK: 1.45, clouds: 0.15, ground: '#bf5a2a', paint: paintAustralia },
+  { name: 'Mata Atlântica', short: 'MATA', country: 'brasil', birds: ['Bem-te-vi', 'Sabiá-laranjeira', 'Tucano-toco', 'Beija-flor', 'Gavião-carijó'], speedK: 1, clouds: 0.9, ground: '#163d24', paint: paintMata },
+  { name: 'Rio de Janeiro', short: 'RIO', country: 'brasil', birds: ['Sabiá-laranjeira', 'Bem-te-vi', 'Beija-flor', 'Tesourão'], speedK: 1.07, clouds: 0.5, ground: '#171717', paint: paintRio },
+  { name: 'Sertão nordestino', short: 'SERTÃO', country: 'brasil', birds: ['Asa-branca', 'Carcará', 'Galo-de-campina', 'Beija-flor'], speedK: 1.14, clouds: 0.3, ground: '#8f5a2e', paint: paintSertao },
+  { name: 'Amazônia', short: 'AMAZÔNIA', country: 'brasil', birds: ['Arara-vermelha', 'Arara-azul', 'Tucano-toco', 'Gavião-real'], speedK: 1.21, clouds: 0.95, ground: '#123a20', paint: paintAmazonia },
+  { name: 'Andes, Peru', short: 'PERU', country: 'peru', birds: ['Tico-tico', 'Beija-flor-gigante', 'Galo-da-serra', 'Condor-andino'], speedK: 1.27, clouds: 0.8, ground: '#3f7038', paint: paintPeru },
+  { name: 'Savana, Quênia', short: 'QUÊNIA', country: 'quenia', birds: ['Estorninho-soberbo', 'Flamingo', 'Rolieiro-de-peito-lilás', 'Águia-pesqueira'], speedK: 1.33, clouds: 0.35, ground: '#b88f48', paint: paintQuenia },
+  { name: 'Monte Fuji, Japão', short: 'JAPÃO', country: 'japao', birds: ['Mejiro', 'Martim-pescador', 'Faisão-verde', 'Grou-japonês'], speedK: 1.39, clouds: 0.7, ground: '#4c7741', paint: paintJapao },
+  { name: 'Outback, Austrália', short: 'AUSTRÁLIA', country: 'australia', birds: ['Periquito-australiano', 'Cacatua-de-crista-amarela', 'Cucaburra', 'Cacatua-negra'], speedK: 1.45, clouds: 0.15, ground: '#bf5a2a', paint: paintAustralia },
 ];
+
+// Países do mapa-múndi: posição do marcador (longitude, latitude).
+export const COUNTRIES = [
+  { key: 'brasil', name: 'Brasil', to: 'ao Brasil', lon: -51, lat: -11 },
+  { key: 'peru', name: 'Peru', to: 'ao Peru', lon: -75, lat: -10 },
+  { key: 'quenia', name: 'Quênia', to: 'ao Quênia', lon: 38, lat: 0 },
+  { key: 'japao', name: 'Japão', to: 'ao Japão', lon: 138, lat: 37 },
+  { key: 'australia', name: 'Austrália', to: 'à Austrália', lon: 134, lat: -25 },
+];
+export const countryOf = i => COUNTRIES.find(c => c.key === STAGES[i].country);
+export const stagesOf = key => STAGES.map((st, i) => ({ ...st, i })).filter(st => st.country === key);
+// Todas as espécies de um país (sem repetir), na ordem em que aparecem nos lugares.
+export const birdsOf = key => [...new Set(stagesOf(key).flatMap(st => st.birds))];
 
 function bakeCloud(parts) {
   const w = 44, h = 16, grid = new Array(w * h).fill(null);

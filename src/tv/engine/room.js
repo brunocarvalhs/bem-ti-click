@@ -1,6 +1,7 @@
 // Sala da TV: o código de 4 letras é o id da TV no PeerJS e cada celular abre uma conexão direta com ela.
-import { PEER_PREFIX, PEER_OPTS, hasPeer } from '../shared/net.js';
-import { cleanName } from '../shared/util.js';
+import { Peer } from 'peerjs';
+import { PEER_PREFIX, PEER_OPTS } from '../../shared/net.js';
+import { cleanName } from '../../shared/util.js';
 
 export const net = { peer: null, error: '', code: '' };
 const conns = new Map(); // token da câmera -> conexão aberta
@@ -8,7 +9,6 @@ let on = null;           // { open(code), join(token, name) -> recusa|null, data
 
 export function openRoom(handlers) {
   on = handlers;
-  if (!hasPeer()) { net.error = 'lib'; on.change(); return; }
   open(0);
 }
 
@@ -18,7 +18,7 @@ function open(tries) {
   try { saved = sessionStorage.getItem('oop-room') || ''; } catch (e) {}
   const A = 'ABCDEFGHJKLMNPRSTUVWXYZ'; // sem I, O e Q para não confundir
   const code = saved || Array.from({ length: 4 }, () => A[Math.floor(Math.random() * A.length)]).join('');
-  const peer = net.peer = new window.Peer(PEER_PREFIX + code, PEER_OPTS);
+  const peer = net.peer = new Peer(PEER_PREFIX + code, PEER_OPTS);
   peer.on('open', () => {
     net.error = ''; net.code = code;
     try { sessionStorage.setItem('oop-room', code); } catch (e) {}
