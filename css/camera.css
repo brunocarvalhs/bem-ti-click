@@ -1,0 +1,84 @@
+/* Câmera: visor de câmera instantânea em tela cheia, com controles ao alcance do polegar. */
+#cam{position:fixed;inset:0;background:linear-gradient(var(--cam-body),#ddd1b5);color:var(--cam-ink)}
+
+/* ---------- entrar na sala ---------- */
+.join{position:absolute;inset:auto 16px;top:50%;transform:translateY(-50%);max-width:440px;margin:0 auto;padding:24px;display:grid;gap:12px;max-height:calc(100% - 32px);overflow:auto;color:var(--ink)}
+.join h2{font-size:18px}
+.join label{font-weight:600;margin-top:4px}
+.join input{font:600 20px var(--ui);color:var(--ink);background:#10141f;border:3px solid var(--line);padding:10px 12px;width:100%;-webkit-user-select:text;user-select:text}
+.join input#codeIn{font:18px var(--pixel);letter-spacing:.2em;text-transform:uppercase}
+
+/* ---------- visor ---------- */
+.vf{position:absolute;inset:0;display:grid;grid-template-areas:"top" "pad" "side" "shut";grid-template-rows:auto minmax(0,1fr) auto auto;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 14px)}
+@media (orientation:landscape){
+  .vf{grid-template-areas:"top top top" "side pad shut";grid-template-columns:minmax(118px,180px) minmax(0,1fr) auto;grid-template-rows:auto minmax(0,1fr);padding-left:calc(env(safe-area-inset-left,0px) + 16px);padding-right:calc(env(safe-area-inset-right,0px) + 16px)}
+  .vf-side{flex-direction:column;align-items:stretch;justify-content:center}
+}
+.vf::after{content:"";position:absolute;left:14%;right:14%;bottom:calc(env(safe-area-inset-bottom,0px) + 4px);height:6px;background:#1d1b17;border-radius:3px;pointer-events:none} /* fenda de onde sai a foto */
+.vf-top{grid-area:top;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;font:10px/1 var(--pixel)}
+.me{display:flex;align-items:center;gap:8px;min-width:0}
+.me i{width:12px;height:12px;background:var(--c,var(--dim));flex:none}
+.me b{font:700 17px var(--ui);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vf-clock{margin-left:auto;color:#6b6252;font-variant-numeric:tabular-nums}
+.vf-clock.rec::before{content:"";display:inline-block;width:9px;height:9px;background:var(--rec);margin-right:8px;vertical-align:-1px}
+.vf-score{font:13px/1 var(--pixel);color:#a9461a;font-variant-numeric:tabular-nums}
+.film{display:flex;align-items:center;gap:6px;font:7px/1 var(--pixel)}
+.film b{font:15px/1 var(--pixel);font-weight:400;color:var(--counter);background:#111;padding:6px 7px 5px;border:3px solid #6b6252;font-variant-numeric:tabular-nums;min-width:2.2em;text-align:center}
+.film b.low{color:var(--rec)}
+.film b.gain{animation:gain .7s steps(5)}
+@keyframes gain{0%{transform:scale(1.6);color:#7bd389}100%{transform:none}}
+
+.pad{grid-area:pad;position:relative;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#26304a 0%,#0c0f19 72%);touch-action:none;border:10px solid #1d1b17;border-radius:22px;box-shadow:0 3px 0 var(--cam-edge)}
+.thirds{position:absolute;inset:0;background:
+  linear-gradient(90deg,transparent calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% + 1px),transparent calc(33.333% + 1px),transparent calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% + 1px),transparent calc(66.666% + 1px)),
+  linear-gradient(180deg,transparent calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% - 1px),rgba(255,255,255,.22) calc(33.333% + 1px),transparent calc(33.333% + 1px),transparent calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% - 1px),rgba(255,255,255,.22) calc(66.666% + 1px),transparent calc(66.666% + 1px));pointer-events:none}
+.af{position:absolute;left:50%;top:50%;width:84px;height:60px;transform:translate(-50%,-50%);pointer-events:none}
+.af i{position:absolute;width:16px;height:16px;border:3px solid var(--sun)}
+.af i:nth-child(1){left:0;top:0;border-right:0;border-bottom:0}
+.af i:nth-child(2){right:0;top:0;border-left:0;border-bottom:0}
+.af i:nth-child(3){right:0;bottom:0;border-left:0;border-top:0}
+.af i:nth-child(4){left:0;bottom:0;border-right:0;border-top:0}
+.vf-msg{position:absolute;left:0;right:0;top:15%;text-align:center;white-space:pre-line;font:clamp(15px,4.6vw,26px)/1.3 var(--pixel);color:var(--ink);text-shadow:3px 3px 0 #000;opacity:0;padding:0 12px;pointer-events:none}
+.vf-msg.show{opacity:1}
+.vf-msg.perfect{color:var(--sun)}
+.vf-msg.miss{color:#ff9d9d}
+.vf-msg.info{font:600 17px/1.4 var(--ui);text-shadow:none;background:#000;border:3px solid var(--line);margin:0 12px;padding:10px 12px}
+.vf-hint{position:absolute;left:0;right:0;bottom:14px;text-align:center;color:var(--dim);font-size:15px;pointer-events:none;padding:0 12px}
+.vf-exif{position:absolute;left:0;right:0;top:12px;text-align:center;font:8px var(--pixel);color:rgba(255,255,255,.55);pointer-events:none}
+
+/* ---------- controles ---------- */
+.vf-side{grid-area:side;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.vf-side .btn{padding:10px 12px;min-height:42px;font-size:9px}
+.vf .btn.ghost{color:var(--cam-ink);border-color:var(--cam-ink)}
+.seg{display:flex;border:3px solid #000;background:#000;padding:3px;gap:3px}
+.seg button{border:0;background:transparent;padding:8px 10px;font:8px/1.4 var(--pixel);color:var(--dim);flex:1}
+.seg button.on{background:var(--ink);color:#000}
+.shut{grid-area:shut;display:grid;place-items:center}
+.shutter{width:92px;height:92px;border-radius:50%;border:6px solid var(--cam-ink);background:var(--cam-ink);padding:6px;touch-action:none}
+.shutter::after{content:"";display:block;width:100%;height:100%;border-radius:50%;background:var(--shutter)}
+.shutter:active::after,.shutter.wait::after{background:#a92b25;transform:scale(.88)}
+.shutter.empty::after{background:#9b917f}
+.blink{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.blink.go{animation:blink .16s steps(3)}
+@keyframes blink{0%{opacity:.9}100%{opacity:0}}
+
+/* ---------- foto instantânea saindo pela fenda ---------- */
+.instant{position:absolute;left:50%;bottom:0;width:min(58vw,230px);background:#fbfaf3;padding:12px 12px 0;box-shadow:0 12px 30px rgba(0,0,0,.45);transform:translate(-50%,110%);z-index:6;pointer-events:none}
+.instant.out{animation:eject 4.4s ease forwards}
+@keyframes eject{0%{transform:translate(-50%,110%)}15%,85%{transform:translate(-50%,-22px) rotate(-2deg)}100%{transform:translate(-50%,110%) rotate(-2deg)}}
+.instant-img{aspect-ratio:1;background:linear-gradient(#56606c,#a7b2bd)}
+.instant-img img{display:block;width:100%;height:100%;image-rendering:pixelated;filter:brightness(.12) sepia(1) blur(3px);transition:filter 2.4s ease .6s}
+.instant.dev .instant-img img{filter:none} /* a foto revela devagar, como filme instantâneo */
+.instant p{font:9px/1.3 var(--pixel);color:var(--cam-ink);padding:14px 2px 18px;text-align:center}
+
+/* ---------- folhas (ajustes e fim da viagem) ---------- */
+.sheet{position:absolute;left:16px;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);max-width:420px;margin:0 auto;padding:20px;display:grid;gap:14px;z-index:5;color:var(--ink)}
+.sheet h3{font-size:14px}
+.sheet label{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sheet input[type=range]{flex:1;accent-color:var(--sun)}
+.sheet input[type=checkbox]{width:22px;height:22px;accent-color:var(--sun)}
+.end{z-index:7} /* acima da foto saindo pela fenda */
+.end h3{font-size:22px;color:var(--sun)}
+.end .btn{flex:1 1 auto;justify-content:center;text-align:center}
+
+@media (prefers-reduced-motion:reduce){.blink.go{animation-duration:.01s}.film b.gain{animation:none}}

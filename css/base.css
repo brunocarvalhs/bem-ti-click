@@ -1,0 +1,43 @@
+/* Base compartilhada: tokens, tipografia, botões e painéis.
+   Visual único e escuro de console 8 bits, por escolha (a TV é o palco). */
+:root{
+  --night:#0e1220;
+  --box:#000000;
+  --line:#f4f1e8;
+  --ink:#f4f1e8;
+  --dim:#9aa6bf;
+  --sun:#ffcc33;
+  --sun-dark:#c48a00;
+  --rec:#ea3b3b;
+  --cam-body:#e9dfc8;   /* corpo da câmera instantânea */
+  --cam-ink:#2b261e;
+  --cam-edge:#c9b994;
+  --shutter:#e2433b;
+  --counter:#ff8a1f;
+  --pixel:"Press Start 2P","Courier New",monospace;
+  --ui:"Pixelify Sans","Trebuchet MS",system-ui,sans-serif;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--night);color:var(--ink);font-family:var(--ui);font-size:17px;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
+h1,h2,h3{font-family:var(--pixel);font-weight:400;margin:0;line-height:1.25;text-wrap:balance}
+p{margin:0}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
+canvas.px,.px-img{image-rendering:pixelated;image-rendering:crisp-edges}
+.eyebrow{font:10px/1.6 var(--pixel);letter-spacing:.06em;text-transform:uppercase;color:var(--dim)}
+.eyebrow b{color:var(--sun);font-weight:400}
+.dim{color:var(--dim)}
+.small{font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:12px}
+.btn{font:11px/1.4 var(--pixel);text-transform:uppercase;padding:13px 16px;border:3px solid var(--line);background:var(--box);color:var(--ink);box-shadow:inset -3px -3px 0 #2c3346;min-height:46px}
+a.btn{display:inline-flex;align-items:center;text-decoration:none}
+.btn:hover{background:#151a29}
+.btn:active{box-shadow:inset 3px 3px 0 #2c3346}
+.btn.primary{background:var(--sun);color:#000;border-color:var(--line);box-shadow:inset -3px -3px 0 var(--sun-dark)}
+.btn.primary:hover{background:#ffd75c}
+.btn.primary:disabled{background:#1d2232;color:var(--dim);box-shadow:none;cursor:not-allowed}
+.btn.ghost{background:transparent;box-shadow:none}
+.panel{background:var(--box);border:4px solid var(--line);box-shadow:0 0 0 4px #000,8px 8px 0 4px rgba(0,0,0,.4)}

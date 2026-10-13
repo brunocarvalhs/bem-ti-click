@@ -1,0 +1,95 @@
+/* TV: cena em pixel art 320×180 ampliada sem suavização, de ponta a ponta,
+   com HUD em caixas de borda branca dentro da margem de overscan. */
+#tv{position:fixed;inset:0;background:#163d24}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#tv.aim #scene{cursor:none}
+
+/* ---------- HUD durante o jogo ---------- */
+.hud{position:absolute;inset:0;pointer-events:none}
+.top-center{position:absolute;top:3.5vh;left:50%;transform:translateX(-50%);display:grid;justify-items:center;gap:8px}
+.clock{font:clamp(22px,5vh,54px)/1 var(--pixel);color:var(--ink);background:#000;border:4px solid var(--line);padding:.35em .55em .3em;font-variant-numeric:tabular-nums}
+.clock.low{color:var(--sun)}
+.stage-info{display:flex;align-items:center;gap:10px;background:#000;border:4px solid var(--line);padding:8px 12px;font:clamp(9px,1.4vh,14px)/1 var(--pixel);white-space:nowrap;font-variant-numeric:tabular-nums}
+.meter{display:block;position:relative;width:clamp(80px,14vw,200px);height:12px;border:2px solid var(--line)}
+.meter i{position:absolute;left:0;top:0;bottom:0;width:0;background:var(--sun);transition:width .3s steps(6)}
+.scoreboard{position:absolute;top:3.5vh;left:3.5vw;list-style:none;margin:0;padding:10px 14px;display:grid;gap:8px;min-width:min(250px,30vw);background:#000;border:4px solid var(--line)}
+.scoreboard li{display:flex;align-items:center;gap:10px;font:clamp(10px,1.7vh,17px)/1.2 var(--pixel)}
+.scoreboard li.off{opacity:.45}
+.scoreboard i,.roster i,.ranking i{width:12px;height:12px;background:var(--c);flex:none;box-shadow:0 0 0 2px #000}
+.scoreboard span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:9em}
+.scoreboard em{margin-left:auto;padding-left:14px;font-style:normal;display:flex;align-items:center;gap:6px;font-variant-numeric:tabular-nums}
+.scoreboard em::before{content:"";width:.6em;height:.75em;border:2px solid currentColor;border-bottom-width:4px} /* mini foto instantânea = fotos restantes */
+.scoreboard em.out{color:var(--rec)}
+.scoreboard b{font-weight:400;padding-left:14px;color:var(--sun);font-variant-numeric:tabular-nums}
+.qr-corner{position:absolute;right:3.5vw;bottom:3.5vh;background:#fff;padding:8px 8px 6px;border:4px solid #000;display:grid;justify-items:center;gap:6px;color:#000;font:10px/1 var(--pixel)}
+.qr-corner img,.qr-corner canvas{display:block;width:108px;height:108px}
+
+/* ---------- painéis sobre a cena ---------- */
+.overlay{position:absolute;inset:0;display:grid;place-items:center;padding:16px;pointer-events:none}
+.overlay>*{pointer-events:auto}
+.gate{max-width:560px;padding:28px;display:grid;gap:18px}
+.gate h1{font-size:clamp(22px,4vw,40px)}
+.gate h1 span{color:var(--sun)}
+#marquee{width:100%;aspect-ratio:4/1;border:4px solid var(--line);background:#4f9de6}
+.countdown{font:min(30vh,30vw)/1 var(--pixel);color:var(--ink);text-shadow:8px 8px 0 #000;pointer-events:none}
+.travel{padding:30px;display:grid;gap:14px;max-width:640px;text-align:center;justify-items:center}
+.travel h2{font-size:clamp(18px,3.4vw,34px);color:var(--sun)}
+
+/* ---------- lobby ---------- */
+.lobby{display:grid;grid-template-columns:auto minmax(0,1fr);gap:30px;align-items:center;padding:28px;max-width:980px;width:100%;max-height:94vh;overflow:auto}
+.lobby-qr{display:grid;gap:10px;justify-items:center;max-width:268px}
+.qr-big{background:#fff;padding:10px;border:4px solid #000;box-shadow:0 0 0 4px var(--line);color:#000;font-size:15px;line-height:1.4;max-width:240px}
+.qr-big img,.qr-big canvas{display:block;width:212px;height:212px}
+.join-url{font:600 15px/1.3 var(--ui);color:var(--dim);text-align:center;word-break:break-all;-webkit-user-select:text;user-select:text}
+.lobby-info{display:grid;gap:16px;min-width:0}
+.lobby-info h2{font-size:clamp(16px,2.6vw,26px)}
+.roster{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px;min-height:38px}
+.roster li{display:flex;align-items:center;gap:8px;border:3px solid #3a4258;padding:7px 12px;font-weight:600}
+.roster li.empty{border-style:dashed;color:var(--dim);font-weight:400}
+
+/* escolha de nível: três cartões, o escolhido fica amarelo */
+.levels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border:0;margin:0;padding:0;min-width:0}
+.levels legend{padding:0;margin-bottom:8px}
+.levels button{display:grid;gap:6px;text-align:left;padding:10px 12px;border:3px solid #3a4258;background:#000}
+.levels button b{font:11px/1.3 var(--pixel);font-weight:400}
+.levels button span{font-size:14px;color:var(--dim);line-height:1.3}
+.levels button[aria-pressed="true"]{border-color:var(--sun);box-shadow:inset 0 0 0 2px var(--sun)}
+.levels button[aria-pressed="true"] b{color:var(--sun)}
+.hard-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-weight:600}
+.hard-row input{font:16px var(--pixel);width:5.5em;padding:8px 10px;background:#10141f;color:var(--ink);border:3px solid var(--line);-webkit-user-select:text;user-select:text}
+
+/* ---------- fim da viagem ---------- */
+.results{padding:26px 28px;max-width:1100px;width:100%;max-height:94vh;overflow:auto;display:grid;gap:18px}
+.results h2{font-size:clamp(16px,2.8vw,28px);color:var(--sun)}
+.results-body{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:24px;align-items:start}
+.results h3{font-size:12px;margin-bottom:12px}
+.ranking{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.ranking li{display:grid;grid-template-columns:auto auto minmax(0,1fr) auto;align-items:center;gap:16px;padding:10px 14px;border:3px solid #3a4258}
+.ranking .pos,.board .pos{font:22px/1 var(--pixel);color:var(--dim);width:1.4em;text-align:center}
+.ranking li:first-child{border-color:var(--sun)}
+.ranking li:first-child .pos{color:var(--sun)}
+.ranking .who{display:grid;gap:6px;min-width:0}
+.ranking .who b{font:13px/1.3 var(--pixel);display:flex;align-items:center;gap:10px;font-weight:400}
+.ranking .who span{color:var(--dim);font-size:15px}
+.ranking .pts{font:24px/1 var(--pixel);font-variant-numeric:tabular-nums}
+.print{background:#fbfaf3;padding:7px 7px 0;color:#2b261e;transform:rotate(-1.5deg);display:grid;width:104px;box-shadow:4px 4px 0 #000} /* foto instantânea: borda larga embaixo */
+.print img{display:block;width:100%;aspect-ratio:1;background:#8cc8f3}
+.print span{font:7px/1.4 var(--pixel);padding:8px 0 10px;text-align:center}
+.print.none{background:transparent;border:3px dashed #3a4258;color:var(--dim);transform:none;aspect-ratio:1/1.2;place-items:center;font-size:14px;box-shadow:none;padding:0}
+/* ranking público: top 10 do nível, com esta partida destacada */
+.board{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.board li{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:6px 10px;border:2px solid #2a3044}
+.board .pos{font-size:12px}
+.board .name{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .where{font:8px var(--pixel);color:var(--dim)}
+.board b{font:13px var(--pixel);font-weight:400;font-variant-numeric:tabular-nums}
+.board li.mine{border-color:var(--sun);color:var(--sun)}
+.board li.empty{display:block;border-style:dashed;color:var(--dim)}
+
+@media (max-width:760px){
+  .lobby{grid-template-columns:1fr;justify-items:center;gap:18px}
+  .levels{grid-template-columns:1fr}
+  .results-body{grid-template-columns:1fr}
+  .ranking li{grid-template-columns:auto minmax(0,1fr) auto}
+  .ranking .print{display:none}
+}
