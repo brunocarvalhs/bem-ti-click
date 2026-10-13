@@ -7,7 +7,19 @@ export const TIERS = [
   { key: 'shaky', max: 1.0, pts: 10, label: 'Foto Tremida' },
 ];
 export const MISS = { key: 'miss', pts: 0, label: 'Perdeu o foco!' };
-export const LABELS = { perfect: 'FOTO PERFEITA! +100', good: 'BOA FOTO +50', shaky: 'FOTO TREMIDA +10', miss: 'PERDEU O FOCO!' };
+export const TIER_TEXT = { perfect: 'FOTO PERFEITA!', good: 'BOA FOTO', shaky: 'FOTO TREMIDA', miss: 'PERDEU O FOCO!' };
+export const shotLabel = (key, pts) => (key === 'miss' ? TIER_TEXT.miss : `${TIER_TEXT[key]} +${pts}`);
+
+// Raridade: multiplica os pontos da foto e define quantas vezes a espécie aparece (w = peso no sorteio).
+export const RARITY = {
+  comum: { name: 'comum', mult: 1, w: 5, color: '#ffffff' },
+  incomum: { name: 'incomum', mult: 1.5, w: 3, color: '#7bd389' },
+  rara: { name: 'rara', mult: 2, w: 1.5, color: '#4cc9f0' },
+  lendaria: { name: 'lendária', mult: 3, w: 0.6, color: '#c4a8ff' },
+};
+export const rarityOf = key => RARITY[key] || RARITY.comum;
+export const multText = key => '×' + String(rarityOf(key).mult).replace('.', ',');
+export const rarityTag = key => `AVE ${rarityOf(key).name.toUpperCase()} ${multText(key)}`;
 
 // Distância normalizada pela hitbox elíptica: 0 = centro, 1 = borda. Pássaro grande e pequeno ficam justos.
 export function shotDistance(aim, b) { return Math.hypot((aim.x - b.x) / b.rx, (aim.y - b.y) / b.ry); }
@@ -16,7 +28,8 @@ export function scoreShot(aim, birds) {
   let best = null;
   for (const b of birds) { const d = shotDistance(aim, b); if (!best || d < best.d) best = { d, bird: b }; }
   const tier = (best && TIERS.find(t => best.d <= t.max)) || MISS;
-  return { ...tier, d: best ? best.d : Infinity, bird: tier === MISS ? null : best.bird };
+  const bird = tier === MISS ? null : best.bird;
+  return { ...tier, pts: bird ? Math.round(tier.pts * rarityOf(bird.rarity).mult) : 0, d: best ? best.d : Infinity, bird };
 }
 
 // Compensação de latência: julga contra o que estava NA TELA (mira exibida + pássaros) nos últimos ms.
@@ -56,7 +69,7 @@ export function filmAfter(film, key, level = 'normal') {
 }
 
 // Fases: o grupo soma pontos e precisa bater a meta do lugar antes do tempo acabar.
-export function stageTarget(i, cams) { return STAGE_TARGETS[i] + TARGET_PER_EXTRA_CAM * Math.max(0, cams - 1); }
+export function stageTarget(i, cams) { return STAGE_TARGETS[Math.min(i, STAGE_TARGETS.length - 1)] + TARGET_PER_EXTRA_CAM * Math.max(0, cams - 1); }
 
 // Abra o site com ?teste para ver o resultado na tela inicial; no terminal: node test/rules.test.js
 export function selfCheck() {
@@ -68,6 +81,9 @@ export function selfCheck() {
     [scoreShot({ x: 500, y: 327 }, [bird]).pts, 10, 'na borda vale 10'],
     [scoreShot({ x: 580, y: 300 }, [bird]).key, 'miss', 'fora do pássaro vale 0'],
     [scoreShot({ x: 698, y: 300 }, [bird, { ...bird, id: 2, x: 700 }]).bird.id, 2, 'conta o pássaro mais centralizado'],
+    [scoreShot({ x: 500, y: 300 }, [{ ...bird, rarity: 'lendaria' }]).pts, 300, 'ave lendária: perfeita vale 300'],
+    [scoreShot({ x: 500, y: 327 }, [{ ...bird, rarity: 'incomum' }]).pts, 15, 'ave incomum: tremida vale 15'],
+    [scoreShot({ x: 580, y: 300 }, [{ ...bird, rarity: 'rara' }]).pts, 0, 'raridade não salva foto perdida'],
     [judge([frame(500, 500), frame(900, 520), frame(1000, 560)], 'a', 1000).pts, 50, 'latência: melhor quadro dos últimos 240 ms'],
     [rankPlayers([{ name: 'A', score: 100, perfect: 1, best: { d: 0.15 } }, { name: 'B', score: 100, perfect: 1, best: { d: 0.05 } }])[0].name, 'B', 'empate vai para a foto mais centralizada'],
     [filmAfter(1, 'perfect'), FILM_PACK, 'normal: foto perfeita ganha um pacote novo'],

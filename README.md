@@ -1,6 +1,6 @@
 # Olha o Passarinho!
 
-Jogo de fotografia de pássaros brasileiros para duas telas. A TV mostra os pássaros e o celular vira a câmera. Não tem servidor nem build: o site é HTML, CSS e JavaScript em módulos, e a TV conversa direto com os celulares pelo navegador (WebRTC).
+Jogo de fotografia de pássaros para duas telas, numa volta ao mundo que começa no Brasil. A TV mostra os pássaros e o celular vira a câmera. Não tem servidor nem build: o site é HTML, CSS e JavaScript em módulos, e a TV conversa direto com os celulares pelo navegador (WebRTC).
 
 ## Como funciona
 
@@ -20,12 +20,37 @@ O nível é escolhido no lobby da TV.
 
 Sem filme, o obturador trava. Se todo mundo ficar sem filme, a viagem acaba ali.
 
-## Viagem pelo Brasil (fases)
+## Volta ao mundo (fases)
 
-- São quatro lugares: Mata Atlântica, Rio de Janeiro (Cristo e Pão de Açúcar), Sertão nordestino (mandacaru) e Amazônia (encontro das águas).
+São oito lugares, cada um com paisagem e pássaros típicos.
+
+| # | Lugar | Paisagem | Pássaros |
+|---|---|---|---|
+| 1 | Mata Atlântica | Serra do Mar e palmeiras-juçara | bem-te-vi, sabiá, tucano, beija-flor, gavião-carijó |
+| 2 | Rio de Janeiro | Cristo, Pão de Açúcar e calçadão | sabiá, bem-te-vi, beija-flor, tesourão |
+| 3 | Sertão nordestino | Chapadas e mandacaru | asa-branca, carcará, galo-de-campina, beija-flor |
+| 4 | Amazônia | Encontro das águas e sumaúmas | araras, tucano, gavião-real |
+| 5 | Andes, Peru | Machu Picchu, terraços e lhamas | tico-tico, beija-flor-gigante, galo-da-serra, condor-andino |
+| 6 | Savana, Quênia | Kilimanjaro, acácias e girafa | estorninho-soberbo, flamingo, rolieiro-de-peito-lilás, águia-pesqueira |
+| 7 | Monte Fuji, Japão | Fuji, lago, torii e cerejeiras | mejiro, martim-pescador, faisão-verde, grou-japonês |
+| 8 | Outback, Austrália | Uluru, eucaliptos e cangurus | periquito, cacatua-de-crista-amarela, cucaburra, cacatua-negra |
+
 - Em cada lugar, o grupo tem 60 s para somar a meta de pontos.
-- Metas: 250, 350, 450 e 550 pontos, mais 120 por câmera extra.
-- Cada lugar tem os próprios pássaros e é um pouco mais rápido que o anterior.
+- Metas: 250, 350, 450, 550, 650, 750, 850 e 1000 pontos, mais 120 por câmera extra (`STAGE_TARGETS` em `js/config.js`).
+- Cada lugar é um pouco mais rápido que o anterior.
+
+## Raridade
+
+Cada espécie tem uma raridade. Quanto mais rara, menos aparece e mais vale a foto.
+
+| Raridade | Multiplicador | Exemplos |
+|---|---|---|
+| Comum | ×1 | bem-te-vi, tico-tico, mejiro |
+| Incomum | ×1,5 | tucano, flamingo, cacatua-de-crista-amarela |
+| Rara | ×2 | arara-azul, galo-da-serra, cucaburra |
+| Lendária | ×3 | gavião-real, condor-andino, grou-japonês |
+
+A pontuação base é Foto Perfeita 100, Boa 50 e Tremida 10. Uma Foto Perfeita de ave lendária vale 300, e Perdeu o foco continua valendo 0. A TV e o celular mostram a raridade a cada acerto, e ela também sai na legenda da foto.
 
 ## Fim da viagem
 
@@ -43,14 +68,14 @@ css/
 js/
   main.js               rota: TV (padrão) ou câmera (?sala=ABCD)
   config.js             tudo que dá para ajustar: metas, filme, link do site, ranking
-  core/rules.js         regras puras: pontuação, latência, níveis, filme, metas e checagens
+  core/rules.js         regras puras: pontuação, raridade, latência, níveis, filme, metas e checagens
   shared/util.js        ajudantes do navegador ($, clamp, localStorage…)
   shared/audio.js       sons chiptune sintetizados
   shared/net.js         opções e erros do PeerJS
   art/pixel.js          base da pixel art (grade → sprite, cantoneiras)
-  art/birds.js          as 12 espécies e seus sprites
+  art/birds.js          as 28 espécies (raridade e cores) e seus sprites
   art/mico.js           o Mico, que ri quando a foto sai fora de foco
-  art/stages.js         os quatro lugares, as paisagens e as nuvens
+  art/stages.js         os oito lugares, as paisagens e as nuvens
   tv/host.js            fases, disparo, loop e botões da TV
   tv/state.js           estado compartilhado da TV
   tv/room.js            sala no PeerJS e conexões dos celulares
@@ -77,7 +102,7 @@ create table public.scores (
   id bigint generated always as identity primary key,
   name text not null check (char_length(name) between 1 and 14),
   score int not null check (score between 1 and 20000),
-  stage int not null check (stage between 1 and 4),
+  stage int not null check (stage between 1 and 8),
   level text not null check (level in ('facil', 'normal', 'dificil')),
   created_at timestamptz not null default now()
 );
@@ -113,7 +138,7 @@ Depois abra `http://localhost:8080`. O celular só entra pelo site publicado (ou
 
 ## Testar
 
-- No navegador, abra o site com `?teste` no fim do endereço. A tela inicial mostra o resultado das 13 checagens das regras.
+- No navegador, abra o site com `?teste` no fim do endereço. A tela inicial mostra o resultado das 16 checagens das regras.
 - No terminal, rode `node test/rules.test.js` (Node 22 ou mais novo).
 
 ## Atenção

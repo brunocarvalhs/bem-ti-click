@@ -6,8 +6,8 @@ export const W = 1600, H = 900;
 // Tempo de cada lugar e contagem antes de começar (segundos).
 export const ROUND = 60, COUNTDOWN = 3;
 
-// Meta de pontos de cada lugar, mais um tanto por câmera extra.
-export const STAGE_TARGETS = [250, 350, 450, 550];
+// Meta de pontos de cada lugar (Brasil, depois o mundo), mais um tanto por câmera extra.
+export const STAGE_TARGETS = [250, 350, 450, 550, 650, 750, 850, 1000];
 export const TARGET_PER_EXTRA_CAM = 120;
 
 // Filme: pacote do nível Normal e faixa de fotos que o Difícil aceita.

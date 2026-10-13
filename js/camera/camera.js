@@ -2,7 +2,7 @@
 import { COLORS, PORTFOLIO_URL } from '../config.js';
 import { $, clamp, num, cleanName, store, wakeLock, vibrate, replay } from '../shared/util.js';
 import { PEER_PREFIX, PEER_OPTS, NET_ERR, hasPeer, LIB_ERROR } from '../shared/net.js';
-import { LABELS, LEVELS, levelOf } from '../core/rules.js';
+import { TIER_TEXT, RARITY, LEVELS, levelOf, shotLabel, rarityTag } from '../core/rules.js';
 import { STAGES } from '../art/stages.js';
 import { initAim } from './aim.js';
 
@@ -100,9 +100,10 @@ function onState(d) {
   film.textContent = unlimited ? '∞' : String(f).padStart(2, '0'); film.classList.toggle('low', f <= 2);
   $('shutter').classList.toggle('empty', f <= 0);
 
-  if (num(d.n) > cam.shown && LABELS[d.k]) {
+  if (num(d.n) > cam.shown && TIER_TEXT[d.k]) {
     cam.shown = num(d.n);
-    showMsg(d.k === 'miss' ? 'PERDEU O FOCO! O Mico riu.' : d.k === 'perfect' ? LABELS.perfect + (bonus ? `\nFILME NOVO +${bonus}` : '') : LABELS[d.k], d.k);
+    const rare = RARITY[d.kr] && d.kr !== 'comum' ? `\n${rarityTag(d.kr)}` : '', film = d.k === 'perfect' && bonus ? `\nFILME NOVO +${bonus}` : '';
+    showMsg(d.k === 'miss' ? 'PERDEU O FOCO! O Mico riu.' : shotLabel(d.k, num(d.kp)) + rare + film, d.k);
     if (d.k === 'perfect') vibrate([20, 40, 20]);
   } else if (num(d.n) < cam.shown) cam.shown = num(d.n); // a TV recarregou
 
@@ -115,14 +116,14 @@ function renderEnd(d, st) {
   if (d.phase !== 'end') return;
   const pts = num(d.s), pos = num(d.p), of = num(d.o);
   $('endScore').textContent = `${pts} ponto${pts === 1 ? '' : 's'}`;
-  $('endNote').textContent = (d.w ? 'Volta ao Brasil completa!' : `A viagem parou em ${STAGES[st].name}.`) + (of > 1 && pos ? ` Você ficou em ${pos}º de ${of}.` : '');
+  $('endNote').textContent = (d.w ? 'Volta ao mundo completa!' : `A viagem parou em ${STAGES[st].name}.`) + (of > 1 && pos ? ` Você ficou em ${pos}º de ${of}.` : '');
 }
 
 function ejectPhoto(m) { // a foto sai pela fenda e revela aos poucos
   const box = $('instant'), img = $('instantImg');
   const src = typeof m.img === 'string' && m.img.startsWith('data:image/png;base64,') ? m.img : '';
   img.hidden = !src; if (src) img.src = src;
-  $('instantCap').textContent = String(m.cap || '').slice(0, 24);
+  $('instantCap').textContent = String(m.cap || '').slice(0, 40);
   box.classList.remove('dev'); replay(box, 'out');
   requestAnimationFrame(() => requestAnimationFrame(() => box.classList.add('dev')));
 }

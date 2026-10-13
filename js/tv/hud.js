@@ -3,7 +3,7 @@ import { FILM_PACK } from '../config.js';
 import { NET_ERR, LIB_ERROR } from '../shared/net.js';
 import { $ } from '../shared/util.js';
 import { STAGES } from '../art/stages.js';
-import { rankPlayers, stageTarget, LEVELS } from '../core/rules.js';
+import { rankPlayers, stageTarget, LEVELS, RARITY, multText } from '../core/rules.js';
 import { tv, onlineCams } from './state.js';
 import { net } from './room.js';
 
@@ -66,6 +66,7 @@ export function renderLevel() {
   $('hardRow').hidden = tv.level !== 'dificil';
   $('hardIn').value = tv.hard;
   $('levelNote').textContent = levelNote(tv.level, tv.hard);
+  $('rarityNote').textContent = 'Ave rara vale mais: ' + Object.keys(RARITY).map(k => `${RARITY[k].name} ${multText(k)}`).join(' · ') + '.';
 }
 
 function print(pl) {
@@ -80,7 +81,7 @@ export function renderResults() {
   const ranked = rankPlayers(tv.players.values());
   $('resultsLevel').textContent = LEVELS[tv.level].name;
   $('winner').textContent = !ranked.length || ranked[0].score === 0 ? 'Ninguém conseguiu foto. O Mico venceu.' : `${ranked[0].name} fez o melhor álbum!`;
-  $('journey').textContent = tv.won ? `Volta ao Brasil completa: ${STAGES.map(s => s.name).join(' → ')}!`
+  $('journey').textContent = tv.won ? `Volta ao mundo completa: do Brasil à Austrália, ${STAGES.length} lugares!`
     : `A viagem parou em ${STAGES[tv.stage].name} (lugar ${tv.stage + 1} de ${STAGES.length}). Faltaram ${Math.max(0, stageTarget(tv.stage, onlineCams()) - tv.stagePts)} pontos para a meta.`;
   const ol = $('ranking'); ol.replaceChildren();
   ranked.forEach((pl, i) => {

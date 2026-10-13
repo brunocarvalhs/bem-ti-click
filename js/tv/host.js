@@ -2,7 +2,7 @@
 import { W, H, ROUND, COUNTDOWN, MAX_CAMS, COLORS, PORTFOLIO_URL } from '../config.js';
 import { $, clamp, num, rand, store, wakeLock, reduceMotion } from '../shared/util.js';
 import { sfx, unlockAudio } from '../shared/audio.js';
-import { TIERS, LABELS, LEVELS, judge, filmAfter, startFilm, stageTarget, rankPlayers, levelOf, hardFilm, selfCheck } from '../core/rules.js';
+import { TIERS, LEVELS, shotLabel, rarityOf, rarityTag, judge, filmAfter, startFilm, stageTarget, rankPlayers, levelOf, hardFilm, selfCheck } from '../core/rules.js';
 import { STAGES } from '../art/stages.js';
 import { SPECIES, BIRD_SPR } from '../art/birds.js';
 import { tv, mico, gfx, onlineCams } from './state.js';
@@ -75,7 +75,8 @@ function pushHostState() {
   const ranked = tv.phase === 'end' ? rankPlayers(tv.players.values()) : [];
   sendEach(token => {
     const pl = tv.players.get(token); if (!pl) return null;
-    return { t: 'state', phase: tv.phase, left: Math.ceil(tv.timeLeft), s: pl.score, c: pl.ci, n: pl.n, f: pl.film === Infinity ? -1 : pl.film, st: tv.stage, k: pl.result ? pl.result.k : '', lv: tv.level, w: tv.won ? 1 : 0, p: ranked.indexOf(pl) + 1, o: ranked.length };
+    const r = pl.result || {};
+    return { t: 'state', phase: tv.phase, left: Math.ceil(tv.timeLeft), s: pl.score, c: pl.ci, n: pl.n, f: pl.film === Infinity ? -1 : pl.film, st: tv.stage, k: r.k || '', kp: r.p || 0, kr: r.r || '', lv: tv.level, w: tv.won ? 1 : 0, p: ranked.indexOf(pl) + 1, o: ranked.length };
   });
 }
 
@@ -116,7 +117,7 @@ function travelNote() {
   return bonus ? `Meta de ${here} batida. Todo mundo ganha filme novo: +${bonus} fotos.` : `Meta de ${here} batida. No Difícil não tem filme novo: cuide das fotos que restam.`;
 }
 
-function stageClear() { // meta batida: viaja para o próximo lugar (ou termina a volta ao Brasil)
+function stageClear() { // meta batida: viaja para o próximo lugar (ou termina a volta ao mundo)
   if (tv.stage === STAGES.length - 1) { tv.won = true; return setPhase('end'); }
   $('travelTo').textContent = `Próxima parada: ${STAGES[tv.stage + 1].name}`;
   $('travelNote').textContent = travelNote();
@@ -148,18 +149,20 @@ function shoot(pl) {
   const bonus = LEVELS[tv.level].bonus;
   pl.score += r.pts; tv.stagePts += r.pts; if (r.key === 'perfect') pl.perfect++;
   pl.film = filmAfter(pl.film, r.key, tv.level);
-  pl.n++; pl.result = { k: r.key };
+  const rar = r.bird ? r.bird.rarity : '';
+  pl.n++; pl.result = { k: r.key, p: r.pts, r: rar };
   tv.rings.push({ x: aim.x, y: aim.y, age: 0 });
   if (now - tv.lastFlash > 340) { tv.lastFlash = now; tv.flash = reduceMotion ? 0.15 : 0.5; } // clarão de tela no máximo 3x/s (fotossensibilidade)
   sfx.shutter();
-  tv.texts.push({ x: aim.x, y: aim.y - 70, text: LABELS[r.key], key: r.key, age: 0 });
+  tv.texts.push({ x: aim.x, y: aim.y - 70, text: shotLabel(r.key, r.pts), key: r.key, age: 0 });
+  if (rar && rar !== 'comum') tv.texts.push({ x: aim.x, y: aim.y - 110, text: rarityTag(rar), color: rarityOf(rar).color, age: 0 });
   if (r.key === 'perfect') {
     sfx.perfect(); tv.locks.push({ id: r.bird.id, age: 0 });
     if (bonus) { sfx.film(); tv.texts.push({ x: aim.x, y: aim.y - 30, text: `FILME NOVO +${bonus}`, key: 'film', age: 0 }); }
   } else if (r.key === 'good') sfx.good();
   else if (r.key === 'miss') micoLaugh();
   // toda foto acertada é recortada da cena (no próximo quadro) e vai para o celular; foto perdida sai em branco
-  if (r.key !== 'miss') tv.crops.push({ pl, n: pl.n, d: r.d, label: TIERS.find(t => t.key === r.key).label, sp: r.bird.sp, id: r.bird.id, off: { x: aim.x - r.bird.x, y: aim.y - r.bird.y }, aim });
+  if (r.key !== 'miss') tv.crops.push({ pl, n: pl.n, d: r.d, label: TIERS.find(t => t.key === r.key).label, sp: r.bird.sp, rar, id: r.bird.id, off: { x: aim.x - r.bird.x, y: aim.y - r.bird.y }, aim });
   else sendTo(pl.key, { t: 'photo', n: pl.n, img: null, cap: 'fora de foco' });
   hud.renderScoreboard(); hud.renderStage(); pushHostState();
   if (tv.stagePts >= stageTarget(tv.stage, onlineCams())) stageClear();
@@ -203,7 +206,7 @@ function update(dt, now) {
   tv.birds = tv.birds.filter(b => !b.gone);
   const aims = {};
   for (const pl of tv.players.values()) if (pl.online) aims[pl.key] = { x: pl.aim.x, y: pl.aim.y };
-  tv.history.push({ t: now, aims, birds: tv.birds.map(b => ({ id: b.id, x: b.x, y: b.y, rx: b.rx, ry: b.ry, sp: b.sp.name })) });
+  tv.history.push({ t: now, aims, birds: tv.birds.map(b => ({ id: b.id, x: b.x, y: b.y, rx: b.rx, ry: b.ry, sp: b.sp.name, rarity: b.sp.rarity })) });
   while (tv.history.length && now - tv.history[0].t > 400) tv.history.shift();
   if (mico.mode === 'down') { mico.y += 150 * dt; if (mico.y >= 30) { mico.y = 30; mico.mode = 'laugh'; mico.t = 0; } }
   else if (mico.mode === 'laugh') { if ((mico.t += dt) > 1.5) mico.mode = 'up'; }

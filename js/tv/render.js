@@ -5,6 +5,7 @@ import { SPECIES, BIRD_SPR } from '../art/birds.js';
 import { MICO_SPR } from '../art/mico.js';
 import { STAGES, CLOUD_SPR, paintBackdrop } from '../art/stages.js';
 import { $, clamp } from '../shared/util.js';
+import { rarityOf } from '../core/rules.js';
 import { tv, mico, view, gfx } from './state.js';
 import { sendTo } from './room.js';
 
@@ -44,7 +45,7 @@ function doCrops() {
     t.getContext('2d').drawImage(gfx.lo, cx - 32, cy - 32, 64, 64, 0, 0, 64, 64);
     const img = t.toDataURL('image/png');
     if (!k.pl.best || k.d < k.pl.best.d) k.pl.best = { d: k.d, label: k.label, sp: k.sp, img };
-    sendTo(k.pl.key, { t: 'photo', n: k.n, img, cap: k.sp });
+    sendTo(k.pl.key, { t: 'photo', n: k.n, img, cap: `${k.sp} · ${rarityOf(k.rar).name}` });
   }
   tv.crops.length = 0;
 }
@@ -104,7 +105,7 @@ export function render(now) {
   for (const t of tv.texts) {
     const p = t.age / 1.2;
     ctx.globalAlpha = p < 0.75 ? 1 : 1 - (p - 0.75) / 0.25;
-    hiText(t.text, clamp(t.x / PX, 72, LW - 72), t.y / PX - p * 10, t.key === 'perfect' ? 7 : 5.5, t.key === 'perfect' ? '#ffcc33' : t.key === 'miss' ? '#ff9d9d' : t.key === 'film' ? '#7bd389' : '#ffffff');
+    hiText(t.text, clamp(t.x / PX, 72, LW - 72), t.y / PX - p * 10, t.key === 'perfect' ? 7 : 5.5, t.color || (t.key === 'perfect' ? '#ffcc33' : t.key === 'miss' ? '#ff9d9d' : t.key === 'film' ? '#7bd389' : '#ffffff'));
   }
   ctx.globalAlpha = 1;
   if (mico.mode === 'laugh') { ctx.textAlign = 'right'; hiText('HA HA HA!', 274, Math.round(mico.y) + 2 + (Math.floor(now / 110) % 2), 6, '#ffcc33'); }

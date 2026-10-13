@@ -1,11 +1,15 @@
-// A viagem: cada lugar tem paisagem, pássaros e ritmo próprios (as metas estão em config.js).
+// A viagem: Brasil primeiro, depois a volta ao mundo. Cada lugar tem paisagem, pássaros e ritmo próprios (metas em config.js).
 import { LW, LH, paintGrid } from './pixel.js';
 
 export const STAGES = [
   { name: 'Mata Atlântica', short: 'MATA', birds: ['Bem-te-vi', 'Sabiá-laranjeira', 'Tucano-toco', 'Beija-flor', 'Gavião-carijó'], speedK: 1, clouds: 0.9, ground: '#163d24', paint: paintMata },
-  { name: 'Rio de Janeiro', short: 'RIO', birds: ['Sabiá-laranjeira', 'Bem-te-vi', 'Beija-flor', 'Tesourão'], speedK: 1.1, clouds: 0.5, ground: '#171717', paint: paintRio },
-  { name: 'Sertão nordestino', short: 'SERTÃO', birds: ['Asa-branca', 'Carcará', 'Galo-de-campina', 'Beija-flor'], speedK: 1.2, clouds: 0.3, ground: '#8f5a2e', paint: paintSertao },
-  { name: 'Amazônia', short: 'AMAZÔNIA', birds: ['Arara-vermelha', 'Arara-azul', 'Tucano-toco', 'Gavião-real'], speedK: 1.3, clouds: 0.95, ground: '#123a20', paint: paintAmazonia },
+  { name: 'Rio de Janeiro', short: 'RIO', birds: ['Sabiá-laranjeira', 'Bem-te-vi', 'Beija-flor', 'Tesourão'], speedK: 1.07, clouds: 0.5, ground: '#171717', paint: paintRio },
+  { name: 'Sertão nordestino', short: 'SERTÃO', birds: ['Asa-branca', 'Carcará', 'Galo-de-campina', 'Beija-flor'], speedK: 1.14, clouds: 0.3, ground: '#8f5a2e', paint: paintSertao },
+  { name: 'Amazônia', short: 'AMAZÔNIA', birds: ['Arara-vermelha', 'Arara-azul', 'Tucano-toco', 'Gavião-real'], speedK: 1.21, clouds: 0.95, ground: '#123a20', paint: paintAmazonia },
+  { name: 'Andes, Peru', short: 'PERU', birds: ['Tico-tico', 'Beija-flor-gigante', 'Galo-da-serra', 'Condor-andino'], speedK: 1.27, clouds: 0.8, ground: '#3f7038', paint: paintPeru },
+  { name: 'Savana, Quênia', short: 'QUÊNIA', birds: ['Estorninho-soberbo', 'Flamingo', 'Rolieiro-de-peito-lilás', 'Águia-pesqueira'], speedK: 1.33, clouds: 0.35, ground: '#b88f48', paint: paintQuenia },
+  { name: 'Monte Fuji, Japão', short: 'JAPÃO', birds: ['Mejiro', 'Martim-pescador', 'Faisão-verde', 'Grou-japonês'], speedK: 1.39, clouds: 0.7, ground: '#4c7741', paint: paintJapao },
+  { name: 'Outback, Austrália', short: 'AUSTRÁLIA', birds: ['Periquito-australiano', 'Cacatua-de-crista-amarela', 'Cucaburra', 'Cacatua-negra'], speedK: 1.45, clouds: 0.15, ground: '#bf5a2a', paint: paintAustralia },
 ];
 
 function bakeCloud(parts) {
@@ -119,4 +123,111 @@ function paintAmazonia({ rect, dot, rnd, sky, blob }) {
     for (let y = 0; y < len; y++) dot(vx + Math.round(Math.sin(y * 0.3)), y, '#2e6b3a');
     for (let y = 4; y < len; y += 5) dot(vx + 1 + Math.round(Math.sin(y * 0.3)), y, '#46924f');
   }
+}
+
+function paintPeru({ rect, dot, rnd, sky }) {
+  sky([[0, '#3f86d2'], [26, '#5e9ddb'], [52, '#86b7e3'], [78, '#b4d0e8'], [98, '#dde8ea']]);
+  for (let x = 0; x < LW; x++) { // cordilheira nevada
+    const h = Math.round(80 + 10 * Math.sin(x * 0.045 + 1) + 7 * Math.abs(Math.sin(x * 0.13)) + 2 * Math.sin(x * 0.37));
+    rect(x, h, 1, 140 - h, '#8796b3');
+    if (h < 90) rect(x, h, 1, Math.min(6, 91 - h), '#f3f6fa');
+  }
+  const peak = (cx, top, k, col, hi) => { for (let x = cx - 60; x <= cx + 60; x++) { const d = x - cx, y0 = Math.round(top + d * d * k); if (y0 < 134) rect(x, y0, 1, 134 - y0, d < 0 ? hi : col); } };
+  peak(286, 92, 0.03, '#3a6640', '#47784b'); peak(232, 58, 0.055, '#2f5a36', '#3f7445'); // Huayna Picchu atrás das ruínas
+  for (let y = 112; y < 121; y++) for (let x = y % 2; x < LW; x += 2) if (rnd() < 0.3) dot(x, y, '#eef3f2'); // neblina
+  rect(70, 124, 190, 14, '#4f7f45'); rect(60, 128, 220, 10, '#4a7840');
+  rect(0, 138, LW, 42, '#4f8a45'); for (let x = 0; x < LW; x += 3) dot(x, 138 + (x % 2), '#62a052');
+  for (let i = 0; i < 9; i++) { // Machu Picchu: casas de pedra sem telhado
+    const x = 92 + i * 14 + Math.floor(rnd() * 4), w = 8 + Math.floor(rnd() * 4), h = 4 + Math.floor(rnd() * 4);
+    rect(x, 126 - h, w, h, '#a39a88');
+    for (let y = 126 - h + 1; y < 126; y += 2) for (let sx = x + (y % 4 ? 0 : 1); sx < x + w; sx += 3) dot(sx, y, '#857c6c');
+    rect(x + 2, 126 - h + 1, 2, 2, '#4a453c');
+  }
+  for (let k = 0; k < 8; k++) { const y = 130 + k * 3, w = 120 - k * 9; rect(0, y, w, 2, k % 2 ? '#5c904c' : '#69a057'); rect(0, y + 2, w, 1, '#7f7462'); } // terraços incas
+  rect(0, 168, LW, 12, '#3f7038');
+  const llama = (x, y) => { // lhama
+    const c = '#f1ebdf', s = '#cfc4b0';
+    rect(x, y, 10, 4, c); rect(x, y + 3, 10, 1, s); dot(x - 1, y, c);
+    rect(x + 8, y - 7, 2, 8, c); rect(x + 8, y - 8, 4, 2, c); dot(x + 8, y - 9, c); dot(x + 9, y - 9, c); dot(x + 10, y - 8, '#2a2a2a');
+    for (const lx of [0, 2, 7, 9]) rect(x + lx, y + 4, 1, 5, s);
+  };
+  llama(46, 160); llama(270, 164);
+}
+
+function paintQuenia({ rect, dot, rnd, sky, sun }) {
+  sky([[0, '#3b78bd'], [24, '#5a92c8'], [50, '#86afcf'], [74, '#c2c7b4'], [94, '#e8c48a'], [110, '#f0ad64']]);
+  sun(250, 104, 15, '#ffd98a', '#ffb24d'); // fim de tarde na savana
+  for (let x = 0; x < 196; x++) { // Kilimanjaro: largo, de topo achatado e nevado
+    const d = Math.abs(x - 96), y0 = Math.round(84 + Math.max(0, d - 26) * 0.6 + Math.sin(x * 0.5) * 0.8);
+    rect(x, y0, 1, 132 - y0, '#7383a0');
+    if (y0 < 93) rect(x, y0, 1, Math.min(5, 94 - y0), '#f4f4f6');
+  }
+  rect(0, 126, LW, 54, '#c9a258'); rect(0, 150, LW, 30, '#b88f48');
+  for (let x = 0; x < LW; x += 7 + Math.floor(rnd() * 9)) rect(x, 124 - Math.floor(rnd() * 2), 4 + Math.floor(rnd() * 5), 3, '#7c7a48'); // arbustos ao longe
+  for (let k = 0; k < 140; k++) { const x = Math.floor(rnd() * LW), y = 128 + Math.floor(rnd() * 52); rect(x, y, 1, 2, k % 3 ? '#a8843f' : '#dcb96c'); } // capim
+  const acacia = (x, ground, hgt, w) => {
+    rect(x, ground - hgt, 2, hgt, '#4a3524');
+    for (let t = 1; t < 5; t++) { dot(x - t, ground - hgt - t, '#4a3524'); dot(x + 1 + t, ground - hgt - t, '#4a3524'); }
+    const top = ground - hgt - 6;
+    for (let dy = -3; dy <= 3; dy++) for (let dx = -w; dx <= w; dx++) if ((dx / w) ** 2 + (dy / 3) ** 2 <= 1) dot(x + dx, top + dy, dy < -1 ? '#62803c' : '#3f5a2a');
+  };
+  acacia(214, 150, 22, 22); acacia(292, 158, 28, 26); acacia(126, 140, 12, 13);
+  const giraffe = (x, ground) => { // girafa contra o sol
+    const c = '#3a2a1c';
+    rect(x, ground - 14, 11, 5, c);
+    for (const lx of [0, 2, 8, 10]) rect(x + lx, ground - 9, 1, 9, c);
+    for (let t = 0; t < 12; t++) rect(x + 9 + Math.floor(t / 3), ground - 15 - t, 2, 1, c);
+    rect(x + 12, ground - 28, 4, 2, c); dot(x + 12, ground - 29, c); dot(x + 14, ground - 29, c);
+  };
+  giraffe(236, 156);
+}
+
+function paintJapao({ rect, dot, rnd, sky, blob }) {
+  sky([[0, '#5a83c2'], [26, '#7b9ed0'], [52, '#a6bde0'], [76, '#d3d0e6'], [96, '#f2d6de'], [110, '#f7e4d6']]);
+  for (let x = 28; x < 292; x++) { // Monte Fuji
+    const d = Math.abs(x - 160), y0 = Math.round(54 + d * 0.22 + d * d * 0.0029);
+    rect(x, y0, 1, 134 - y0, x < 160 ? '#7487b0' : '#6a7ca6');
+    const snow = 78 + (x % 7 < 3 ? 3 : 0) + Math.round(Math.sin(x * 0.9) * 2);
+    if (y0 < snow) rect(x, y0, 1, snow - y0, '#f4f6fb');
+  }
+  rect(0, 132, LW, 22, '#7f9ec8'); // lago
+  for (let y = 134; y < 152; y += 3) for (let x = (y * 5) % 11; x < LW; x += 10) rect(x, y, 4, 1, '#a9c0e0');
+  rect(0, 154, LW, 26, '#5d8a4e'); rect(0, 166, LW, 14, '#4c7741');
+  const red = '#d33a2c'; // torii na beira do lago
+  rect(250, 108, 3, 46, red); rect(270, 108, 3, 46, red); rect(245, 117, 33, 2, red); rect(243, 109, 37, 2, red);
+  for (let x = 238; x <= 284; x++) rect(x, 105 - (Math.abs(x - 261) > 18 ? 1 : 0), 1, 3, '#2a1f1f');
+  rect(250, 152, 3, 2, '#1d1515'); rect(270, 152, 3, 2, '#1d1515');
+  const sakura = (x, ground, r) => {
+    rect(x, ground - r - 10, 2, r + 10, '#5a3b32'); dot(x - 1, ground - r - 6, '#5a3b32'); dot(x + 2, ground - r - 8, '#5a3b32');
+    blob(x - Math.round(r * 0.7), ground - r - 11, r, '#f2a7bd', '#fbd0dd'); blob(x + Math.round(r * 0.8), ground - r - 13, r - 1, '#f2a7bd', '#fbd0dd'); blob(x, ground - r - 17, r, '#f5b5c8', '#fde0e8');
+  };
+  sakura(30, 170, 9); sakura(96, 174, 7); sakura(196, 176, 6);
+  for (let k = 0; k < 40; k++) dot(Math.floor(rnd() * LW), 20 + Math.floor(rnd() * 150), '#f9c6d4'); // pétalas no ar
+}
+
+function paintAustralia({ rect, dot, rnd, sky, sun, blob }) {
+  sky([[0, '#2c6cbf'], [28, '#478acf'], [56, '#73a9de'], [84, '#acd0e8'], [104, '#ead9bd']]);
+  sun(56, 34, 11, '#fffbe6', '#fff0b0');
+  for (let x = 66; x <= 258; x++) { // Uluru
+    const t = (x - 162) / 96, y0 = Math.round(132 - 36 * Math.sqrt(Math.max(0, 1 - t ** 6)) + Math.sin(x * 0.3) * 0.6);
+    rect(x, y0, 1, 132 - y0, '#c2532a');
+    if (x % 9 < 2 && y0 < 126) rect(x, y0 + 3, 1, 129 - y0, '#a3411f'); // sulcos da erosão
+    dot(x, y0, '#dc7442');
+  }
+  rect(0, 130, LW, 50, '#cf6a34'); rect(0, 150, LW, 30, '#bf5a2a');
+  for (let k = 0; k < 90; k++) dot(Math.floor(rnd() * LW), 132 + Math.floor(rnd() * 48), '#e0864a');
+  for (let k = 0; k < 26; k++) blob(Math.floor(rnd() * LW), 136 + Math.floor(rnd() * 40), 2, '#b8a548', '#d2c062'); // touceiras de capim
+  const gum = (x, ground, hgt) => { // eucalipto de tronco branco
+    rect(x, ground - hgt, 2, hgt, '#ece6d8'); for (let y = ground - hgt; y < ground; y += 4) dot(x + 1, y, '#bdb5a5');
+    for (let t = 1; t < 7; t++) { dot(x - t, ground - hgt - Math.floor(t / 2), '#ece6d8'); dot(x + 1 + t, ground - hgt + 3 - Math.floor(t / 2), '#ece6d8'); }
+    blob(x - 7, ground - hgt - 5, 6, '#6e8c68', '#88a37f'); blob(x + 6, ground - hgt - 1, 6, '#6e8c68', '#88a37f'); blob(x, ground - hgt - 9, 6, '#7b9873', '#94ad89');
+  };
+  gum(288, 172, 44); gum(24, 160, 26);
+  const roo = (x, ground) => { // canguru
+    const c = '#6b3a20';
+    rect(x, ground - 9, 5, 6, c); rect(x + 4, ground - 13, 2, 5, c); rect(x + 5, ground - 14, 3, 2, c); dot(x + 5, ground - 15, c);
+    for (let t = 0; t < 7; t++) dot(x - 1 - t, ground - 4 + Math.floor(t / 3), c);
+    rect(x + 1, ground - 3, 4, 3, c);
+  };
+  roo(120, 158); roo(142, 162);
 }
