@@ -1,6 +1,6 @@
 // TV (host): manda no jogo. Simula os pássaros, julga as fotos e conduz as fases.
-import { W, H, ROUND, COUNTDOWN, MAX_CAMS, COLORS, PORTFOLIO_URL } from '../config.js';
-import { $, clamp, num, rand, store, wakeLock, reduceMotion } from '../shared/util.js';
+import { W, H, ROUND, COUNTDOWN, MAX_CAMS, COLORS } from '../config.js';
+import { $, clamp, num, rand, store, wakeLock, reduceMotion, portfolioUrl } from '../shared/util.js';
 import { sfx, unlockAudio } from '../shared/audio.js';
 import { TIERS, LEVELS, shotLabel, rarityOf, rarityTag, judge, filmAfter, startFilm, stageTarget, rankPlayers, levelOf, hardFilm, selfCheck } from '../core/rules.js';
 import { STAGES } from '../art/stages.js';
@@ -16,7 +16,7 @@ let lastFrame = 0;
 
 export function startTv(params) {
   $('tv').hidden = false;
-  $('siteLink').href = PORTFOLIO_URL;
+  $('siteLink').href = portfolioUrl();
   initScene($('scene'));
   hud.renderRoster(); hud.renderLevel(); marquee();
   wireControls();

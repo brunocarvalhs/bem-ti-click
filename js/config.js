@@ -20,7 +20,8 @@ export const PEER_PREFIX = 'olhaopassarinho-v1-';
 export const COLORS = ['#ffcc33', '#4cc9f0', '#ff6b9a', '#7bd389', '#ff8b3d', '#c4a8ff'];
 
 // Tela final.
-export const PORTFOLIO_URL = 'https://bruno-carvalho.dev.br/';
+// Vazio = raiz do domínio onde o jogo está publicado (ex.: https://brunocarvalhs.github.io/).
+export const PORTFOLIO_URL = '';
 
 // Ranking público (Supabase). Vazio = ranking guardado só neste navegador. Passo a passo no README.
 export const RANK_URL = '';

@@ -1,6 +1,6 @@
 // Câmera (celular): entra na sala, mira, dispara e recebe as fotos da TV.
-import { COLORS, PORTFOLIO_URL } from '../config.js';
-import { $, clamp, num, cleanName, store, wakeLock, vibrate, replay } from '../shared/util.js';
+import { COLORS } from '../config.js';
+import { $, clamp, num, cleanName, store, wakeLock, vibrate, replay, portfolioUrl } from '../shared/util.js';
 import { PEER_PREFIX, PEER_OPTS, NET_ERR, hasPeer, LIB_ERROR } from '../shared/net.js';
 import { TIER_TEXT, RARITY, LEVELS, levelOf, shotLabel, rarityTag } from '../core/rules.js';
 import { STAGES } from '../art/stages.js';
@@ -11,7 +11,7 @@ let peer = null, conn = null, msgTimer = 0, retryTimer = 0, openTimer = 0;
 
 export function startCam(params) {
   $('cam').hidden = false;
-  $('camSite').href = PORTFOLIO_URL;
+  $('camSite').href = portfolioUrl();
   const code = (params.get('sala') || '').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 4);
   $('codeIn').value = code;
   $('nameIn').value = store.get('oop-name') || '';

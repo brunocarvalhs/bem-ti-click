@@ -1,4 +1,7 @@
-# Olha o Passarinho!
+# Bem Ti Click
+
+O nome é um trocadilho com o bem-te-vi.
+
 
 Jogo de fotografia de pássaros para duas telas, numa volta ao mundo que começa no Brasil. A TV mostra os pássaros e o celular vira a câmera. Não tem servidor nem build: o site é HTML, CSS e JavaScript em módulos, e a TV conversa direto com os celulares pelo navegador (WebRTC).
 

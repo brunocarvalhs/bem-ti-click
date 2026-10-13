@@ -1,4 +1,5 @@
 // Ajudantes do navegador usados pela TV e pela câmera.
+import { PORTFOLIO_URL } from '../config.js';
 export const $ = id => document.getElementById(id);
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const num = v => (Number.isFinite(v) ? v : 0);
@@ -13,6 +14,9 @@ export const store = {
 };
 
 export function wakeLock() { try { navigator.wakeLock && navigator.wakeLock.request('screen').catch(() => {}); } catch (e) {} }
+// Link "Conhecer outros projetos": o configurado, ou a raiz do site onde o jogo está.
+export const portfolioUrl = () => PORTFOLIO_URL || new URL('/', location.href).href;
+
 export function vibrate(p) { try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
 
 // Reinicia uma animação CSS (remove a classe, força layout, coloca de novo).
