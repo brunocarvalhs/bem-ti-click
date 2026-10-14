@@ -2,6 +2,7 @@
 // cam.x / cam.y vão de 0 a 1 (canto superior esquerdo a inferior direito da TV).
 import { W, H } from '../config.js';
 import { clamp, store } from '../shared/util.js';
+import { gyroToAim, deadzone } from './gyro.js';
 
 export function loadSettings(cam) {
   Object.assign(cam, { x: 0.5, y: 0.5, mode: 'touch', sens: 1, invX: false, invY: false });
@@ -41,23 +42,25 @@ export function createAim(cam, on) {
   }
 
   // Opção A — giroscópio: integra a velocidade angular (graus/s) e move a mira, como um air mouse.
-  let gyroLast = 0, gyroSeen = false, listening = false;
+  let gyroLast = 0, gyroSeen = false, listening = false, grav = null;
   function onMotion(e) {
     const r = e.rotationRate; if (!r || (r.beta == null && r.gamma == null)) return;
     gyroSeen = true; if (cam.mode !== 'gyro') return;
     const now = performance.now(), dt = gyroLast ? Math.min(0.05, (now - gyroLast) / 1000) : 0; gyroLast = now;
+    const g = e.accelerationIncludingGravity;
+    if (g && g.x != null) { // filtro passa-baixa: fica só a gravidade, sem o chacoalhar da mão
+      grav = grav ? { x: grav.x + (g.x - grav.x) * 0.1, y: grav.y + (g.y - grav.y) * 0.1, z: grav.z + (g.z - grav.z) * 0.1 } : { x: g.x, y: g.y, z: g.z };
+    }
     const ang = ((((screen.orientation && screen.orientation.angle) ?? window.orientation ?? 0) % 360) + 360) % 360;
-    const b = r.beta || 0, g = r.gamma || 0;
-    // yaw = girar para a direita, pitch = apontar para cima (graus/s). Sinais variam por aparelho: os toggles "Inverter" calibram.
-    const [yaw, pitch] = ang === 90 ? [-b, -g] : ang === 270 ? [b, g] : ang === 180 ? [g, -b] : [-g, b];
-    const dz = v => (Math.abs(v) < 2 ? 0 : v); // zona morta contra drift
+    // Sinais variam por aparelho: os toggles "Inverter" calibram.
+    const { yaw, pitch } = gyroToAim(r, grav, ang);
     const fovX = 40 / cam.sens, fovY = fovX * H / W; // graus de giro para atravessar a tela
-    moveAim((cam.invX ? -1 : 1) * dz(yaw) * dt / fovX, -(cam.invY ? -1 : 1) * dz(pitch) * dt / fovY);
+    moveAim((cam.invX ? -1 : 1) * deadzone(yaw) * dt / fovX, -(cam.invY ? -1 : 1) * deadzone(pitch) * dt / fovY);
   }
 
   function enableGyro() {
     if (!window.isSecureContext) return gyroFail('O giroscópio só funciona com HTTPS (veja o README). Seguimos no touchpad.');
-    setMode('gyro'); gyroSeen = false; gyroLast = 0;
+    setMode('gyro'); gyroSeen = false; gyroLast = 0; grav = null;
     const blocked = 'O navegador não liberou o giroscópio. Seguimos no touchpad.';
     const go = () => {
       if (!listening) { addEventListener('devicemotion', onMotion); listening = true; }
